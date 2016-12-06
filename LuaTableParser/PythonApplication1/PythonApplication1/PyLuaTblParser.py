@@ -35,11 +35,16 @@ class PyLuaTblParser:
             result = '{'
             if type(value) == dict:
                 for k,v in value.items():
-                    
-                    result = result + str(k) + '=' + str(dump_aux(v)) + ','
+                    if isinstance(k,str):
+                        k = '"' + k + '"'
+                    result = result + '[' + str(k) + ']' + '=' + str(dump_aux(v)) + ','
             elif type(value) == list:
                 for v in value:
                     result += str(dump_aux(v)) + ','
+            elif value == True :
+                return 'true'
+            elif value == False :
+                return 'false'
             else:
                 if isinstance(value,str):
                     value = '"' + value + '"'

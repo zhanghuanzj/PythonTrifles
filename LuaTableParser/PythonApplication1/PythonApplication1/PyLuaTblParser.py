@@ -1,0 +1,140 @@
+s = '{array = {65,23,5,},dict = {mixed = {43,54.33,false,9,string = "value",},array = {3,6,4,},string = "value",},}'
+str = s.replace('{','{\n').replace(',',',\n')
+print str
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def is_empty(self):
+        return len(self.items)==0
+
+    def push(self,item):
+        self.items.append(item)
+    
+    def pop(self):
+        return self.items.pop()
+
+    def peek(self):
+        if not self.is_empty():
+            return self.items[len(self.items)-1]
+
+    def size(self):
+        return len(self.items)
+
+class PyLuaTblParser:
+
+    def load(self,s):
+        self.tableString = s
+        self.length = len(self.tableString)
+        self.index = 0
+        self.table = self.process()
+
+    def process(self):
+        def get_val(value):
+            print 'Handling :'+value
+            if value == 'nil':
+                return None
+            elif value == 'false':
+                return False
+            elif value == 'true':
+                return True
+            elif value[0] =='"' and value[len(value)-1]=='"':
+                return value[1:-1]
+            elif not value[0].isdigit():
+                return value
+            else:
+                try:
+                    return int(value)
+                except ValueError:
+                    return float(value)
+
+        val = ''
+        val_stack = Stack()
+        op_stack = Stack()
+        map = {}
+        array = []
+        is_array = True
+        is_first = True
+        map_index = 0
+
+        while True:
+            if self.index >= self.length:
+                raise Exception('Table format wrong')
+            c = self.tableString[self.index]
+            if c == '{' :
+                if is_first:
+                    is_first = False
+                else :
+                    item = self.process()
+                    if op_stack.peek() == '=':
+                        if val_stack.peek() != None and item != None:
+                            map[val_stack.peek()] = item
+                        val_stack.pop()
+                    else :
+                        if is_array:
+                            array.append(item)
+                        elif item != None:
+                            map[map_index] = item
+                            map_index += 1
+                             
+            elif c == '}':
+                if val != '':
+                    temp = get_val(val)
+                    val = ''
+                    if op_stack.peek() == '=':
+                        if val_stack.peek() != None and temp != None:
+                            map[val_stack.peek()] = temp
+                        val_stack.pop()
+                    else :
+                        if is_array:
+                            array.append(temp)
+                        elif temp != None:
+                            map[map_index] = temp
+                            map_index += 1
+                if is_array:
+                    if len(array) != 0:
+                        return array
+                else:
+                    if len(map) != 0 :
+                        return map
+            elif c == '=':
+                if is_array:
+                    is_array = False
+                    for v in array:
+                        map[map_index] = v
+                        map_index += 1
+                val_stack.push(get_val(val))
+                op_stack.push('=')
+                val = ''
+            elif c == ',':
+                if val != '':
+                    temp = get_val(val)
+                    val = ''
+                    if op_stack.peek() == '=':
+                        if val_stack.peek() != None and temp != None:
+                            map[val_stack.peek()] = temp
+                        val_stack.pop()
+                    else :
+                        if is_array:
+                            array.append(temp)
+                        elif temp != None: 
+                            map[map_index] = temp
+                            map_index += 1
+            elif c == ' ':
+                pass
+            elif c != ' ':
+                val = val + c
+            self.index += 1
+    
+
+pl = PyLuaTblParser()
+#print pl.load('{"45",23,5}')
+#print pl.load('{"45",23,5,true,false}')
+#print pl.load('{"45",23,5,{23,34,55}}')
+#print pl.load('{5,key="jack"}')
+#print pl.load('{"45",key="jack"}')
+#print pl.load('{array = {65,23,5,}}')
+#print pl.load('{43,54.33,false,9,string = "value",}')
+print pl.load('{a = {5,},}')
+#print pl.load('{array = {65,23,5,},dict = {mixed = {43,54.33,false,9,string = "value",},array = {3,6,4,},string = "value",},}')

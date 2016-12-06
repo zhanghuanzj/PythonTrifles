@@ -1,0 +1,16 @@
+1.模块安装
+  将PyLuaTBLParser.py模块存于Python27\Lib\site-packages中
+2.模块导入
+  在python文件中导入模块
+  from PyLuaTblParser import PyLuaTblParser
+3.模块使用说明
+  pl = PyLuaTblParser()	#创建对象
+  pl.load(lua table创建字符串) #此时已将table结构存于类内
+  pl.dump() #将内部table以lua table字符串的形式返回
+  pl.loadLuaTable(filePath) #从文件中读取lua table字符串并进行解析存储
+  pl.dumpLuaTable(filePath) #将类中内容一lua table格式存入文件
+  pl.loadDict(d) #将dict导入并转换成内部格式
+  pl.dumpDict() #返回dict
+
+unecessary dict key: 6
+(type=dict, key or index=root)

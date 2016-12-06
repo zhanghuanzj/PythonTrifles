@@ -1,6 +1,3 @@
-s = '{array = {65,23,5,},dict = {mixed = {43,54.33,false,9,string = "value",},array = {3,6,4,},string = "value",},}'
-s = s.replace('{','{\n').replace(',',',\n')
-print s
 
 class Stack:
     def __init__(self):
@@ -13,7 +10,8 @@ class Stack:
         self.items.append(item)
     
     def pop(self):
-        return self.items.pop()
+        if not self.is_empty():
+            return self.items.pop()
 
     def peek(self):
         if not self.is_empty():
@@ -25,7 +23,9 @@ class Stack:
 class PyLuaTblParser:
 
     def load(self,s):
-        self.tableString = s
+        print '-------------------------------------------------------------------'
+        print s
+        self.tableString = s.replace('\n','').replace('\r','')
         self.length = len(self.tableString)
         self.index = 0
         self.table = self.process()
@@ -45,6 +45,8 @@ class PyLuaTblParser:
                 return 'true'
             elif value == False :
                 return 'false'
+            elif value == None :
+                return 'nil'
             else:
                 if isinstance(value,str):
                     value = '"' + value + '"'
@@ -53,9 +55,47 @@ class PyLuaTblParser:
             return result
         return dump_aux(self.table)
     
+    def loadLuaTable(self, f):
+        try :
+            table_file = open(f)
+            tableString = table_file.read()
+            self.load(tableString)
+        except IOError,e:
+            print e
+    def dumpLuaTable(self, f):
+        try :
+            table_file = open(f,'w')
+            table_file.write(self.dump())
+            table_file.close()
+        except IOError,e:
+            print e
+    
+    def loadDict(self,d):
+        self.table = self.acquire(d)
+          
+    def dumpDict(self):
+        return self.acquire(self.table)  
+
+    def acquire(self,d):
+        result = None
+        if type(d) == dict:
+            result = {}
+            for k,v in d.items():
+                if str(k).isdigit or isinstance(k,str) and v != None: #Check key&value is valid
+                    if type(v) == dict or type(v) == list:
+                        v = self.acquire(v)
+                    result[k] = v
+        if type(d) == list:
+            result = []
+            for v in d:
+                if type(v) == dict or type(v) == list:
+                    v = self.acquire(v)
+                result.append(v)
+        return result
+
     def process(self):
         def get_val(value):
-            print 'Handling :'+value
+            #print 'Handling :'+value
             if value == 'nil':
                 return None
             elif value == 'false':
@@ -79,7 +119,8 @@ class PyLuaTblParser:
         array = []
         is_array = True
         is_first = True
-        map_index = 0
+        is_key = False
+        map_index = 1
 
         while True:
             if self.index >= self.length:
@@ -115,18 +156,22 @@ class PyLuaTblParser:
                         elif temp != None:
                             map[map_index] = temp
                             map_index += 1
-                if is_array:
-                    if len(array) != 0:
-                        return array
+                if is_array or len(map)==0:
+                    return array
                 else:
-                    if len(map) != 0 :
-                        return map
+                    return map
+            elif c == '[' :
+                op_stack.push(c)
+            elif c == ']' and op_stack.peek() == '[':
+                op_stack.pop()
+                is_key = True
             elif c == '=':
                 if is_array:
                     is_array = False
                     for v in array:
-                        map[map_index] = v
-                        map_index += 1
+                        if v != None:
+                            map[map_index] = v
+                            map_index += 1
                 val_stack.push(get_val(val))
                 op_stack.push('=')
                 val = ''
@@ -136,6 +181,11 @@ class PyLuaTblParser:
                     val = ''
                     if op_stack.peek() == '=':
                         if val_stack.peek() != None and temp != None:
+                            if isinstance(val_stack.peek(),int) or isinstance(val_stack.peek(),float):
+                                if is_key:
+                                    is_key = False
+                                else :
+                                    raise Exception('Table format wrong')
                             map[val_stack.peek()] = temp
                         val_stack.pop()
                     else :
@@ -151,14 +201,3 @@ class PyLuaTblParser:
             self.index += 1
     
 
-pl = PyLuaTblParser()
-#print pl.load('{"45",23,5}')
-#print pl.load('{"45",23,5,true,false}')
-#print pl.load('{"45",23,5,{23,34,55}}')
-#print pl.load('{5,key="jack"}')
-#print pl.load('{"45",key="jack"}')
-#print pl.load('{array = {65,23,5,}}')
-#print pl.load('{43,54.33,false,9,string = "value",}')
-#print pl.load('{a = {5,},}')
-pl.load('{array = {65,23,5,},dict = {mixed = {43,54.33,false,9,string = "value",},array = {3,6,4,},string = "value",},}')
-print pl.dump()

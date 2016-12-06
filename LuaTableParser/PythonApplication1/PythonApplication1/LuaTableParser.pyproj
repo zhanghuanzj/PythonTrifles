@@ -6,7 +6,7 @@
     <ProjectGuid>fa6e1d2c-1e4d-40b7-a921-fe578f24d4a8</ProjectGuid>
     <ProjectHome>
     </ProjectHome>
-    <StartupFile>PyLuaTblParser.py</StartupFile>
+    <StartupFile>Test.py</StartupFile>
     <SearchPath>
     </SearchPath>
     <WorkingDirectory>.</WorkingDirectory>
@@ -24,6 +24,9 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="PyLuaTblParser.py" />
+    <Compile Include="Test.py">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <PropertyGroup>
     <VisualStudioVersion Condition="'$(VisualStudioVersion)' == ''">10.0</VisualStudioVersion>

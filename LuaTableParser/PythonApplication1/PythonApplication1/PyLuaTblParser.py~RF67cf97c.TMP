@@ -30,23 +30,12 @@ class PyLuaTblParser:
         self.index = 0
         self.table = self.process()
     
-    def dump(self):#dict key handling
-        def dump_aux(value):
-            result = '{'
-            if type(value) == dict:
-                for k,v in value.items():
-                    
-                    result = result + str(k) + '=' + str(dump_aux(v)) + ','
-            elif type(value) == list:
-                for v in value:
-                    result += str(dump_aux(v)) + ','
-            else:
-                if isinstance(value,str):
-                    value = '"' + value + '"'
-                return value
-            result += '}'
-            return result
-        return dump_aux(self.table)
+    def dump(self):
+        def dump_aux():
+            if type(self.table) == dict:
+                for key,value in selft.table.items():
+                    print type(self.table)
+            return str(self.table)
     
     def process(self):
         def get_val(value):

@@ -14,3 +14,10 @@
 
 unecessary dict key: 6
 (type=dict, key or index=root)
+
+Traceback (most recent call last):
+  File "check_homework.py", line 65
+  File "PyLuaTblParser.py", line 40
+  File "PyLuaTblParser.py", line 192
+  File "PyLuaTblParser.py", line 192
+  File "PyLuaTblParser.py", line 174

@@ -1,10 +1,10 @@
 
-NONE = 0
-BOOL = 1 
-EXP = 2 #str | num
-NAME = 3
-KEY = 4
-OTHER = 5
+NONE = "NONE"
+BOOL = "BOOL" 
+EXP = "EXP" #str | num
+NAME = "NAME"
+KEY = "KEY"
+OTHER = "OTHER"
 
 class Stack:
     def __init__(self):
@@ -30,9 +30,11 @@ class Stack:
 class PyLuaTblParser:
 
     def load(self,s):
-        print '-------------------------------------------------------------------'
-        print s
-        self.tableString = s
+        #print '-------------------------------------------------------------------'
+        s = s.splitlines()
+        self.tableString = ''
+        for v in s:
+            self.tableString += v
         self.length = len(self.tableString)
         self.index = 0
         self.table = self.process()
@@ -42,16 +44,18 @@ class PyLuaTblParser:
             result = '{'
             if type(value) == dict:
                 for k,v in value.items():
-                    if isinstance(k,str):
-                        k = '"' + k + '"'
-                    result = result + '[' + str(k) + ']' + '=' + str(dump_aux(v)) + ','
-            elif type(value) == list:
+                    if type(k) in (str,int,float):
+                        if isinstance(k,str):
+                            k = '"' + k + '"'
+                        result = result + '[' + str(k) + ']' + '=' + str(dump_aux(v)) + ','
+            elif type(value) == list or type(value) == tuple:
                 for v in value:
                     result += str(dump_aux(v)) + ','
-            elif value == True :
-                return 'true'
-            elif value == False :
-                return 'false'
+            elif type(value) is bool:
+                if value == True :
+                    return 'true'
+                elif value == False :
+                    return 'false'
             elif value == None :
                 return 'nil'
             else:
@@ -92,6 +96,8 @@ class PyLuaTblParser:
             result = {}
             for k,v in d.items():
                 if str(k).isdigit or isinstance(k,str) and v != None: #Check key&value is valid
+                    if type(v) == tuple:
+                        v = list(v)
                     if type(v) == dict or type(v) == list:
                         v = self.acquire(v)
                     result[k] = v
@@ -105,6 +111,7 @@ class PyLuaTblParser:
     
     def process(self):
         def get_val(value):
+            value = value.strip()
             print 'Handling :'+value
             if value == '':
                 return None,OTHER
@@ -118,7 +125,7 @@ class PyLuaTblParser:
                 return value[1:-1],EXP
             elif value[0] =='[' and value[-1]==']':
                 result = get_val(value[1:-1])
-                if result[1] == EXP:
+                if result[1] in (EXP,BOOL):
                     return result[0],KEY
                 else :
                     return None,OTHER
@@ -160,7 +167,7 @@ class PyLuaTblParser:
                     elif value[1] == NONE:
                         pass
                     else:
-                        if value[1]==EXP and (key[1]==KEY or key[1]==NAME ):                            
+                        if (value[1]==EXP or value[1]==BOOL) and (key[1]==KEY or key[1]==NAME ):                            
                             map[key[0]] = value[0]
                             is_array = False
                         else :
@@ -189,8 +196,8 @@ class PyLuaTblParser:
                     if val != '':
                         value = get_val(val)
                         val = ''
-                        finish = True
-                        continue
+                    finish = True
+                    continue
                 else : #'{}'not match
                     raise Exception('Table format wrong')
             elif c == '=':

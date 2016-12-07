@@ -1,4 +1,11 @@
 
+NONE = 0
+BOOL = 1 
+EXP = 2 #str | num
+NAME = 3
+KEY = 4
+OTHER = 5
+
 class Stack:
     def __init__(self):
         self.items = []
@@ -25,7 +32,7 @@ class PyLuaTblParser:
     def load(self,s):
         print '-------------------------------------------------------------------'
         print s
-        self.tableString = s.replace('\n','').replace('\r','')
+        self.tableString = s
         self.length = len(self.tableString)
         self.index = 0
         self.table = self.process()
@@ -57,8 +64,11 @@ class PyLuaTblParser:
     
     def loadLuaTable(self, f):
         try :
+            tableString = ''
             table_file = open(f)
-            tableString = table_file.read()
+            lines = table_file.readlines()
+            for line in lines:
+                tableString += line.strip()
             self.load(tableString)
         except IOError,e:
             print e
@@ -92,26 +102,41 @@ class PyLuaTblParser:
                     v = self.acquire(v)
                 result.append(v)
         return result
-
+    
     def process(self):
         def get_val(value):
-            #print 'Handling :'+value
-            if value == 'nil':
-                return None
+            print 'Handling :'+value
+            if value == '':
+                return None,OTHER
+            elif value == 'nil':
+                return None,NONE
             elif value == 'false':
-                return False
+                return False,BOOL
             elif value == 'true':
-                return True
-            elif value[0] =='"' and value[len(value)-1]=='"':
-                return value[1:-1]
-            elif not value[0].isdigit():
-                return value
+                return True,BOOL
+            elif len(value)>1 and value[0] =='"' and value[-1]=='"':
+                return value[1:-1],EXP
+            elif value[0] =='[' and value[-1]==']':
+                result = get_val(value[1:-1])
+                if result[1] == EXP:
+                    return result[0],KEY
+                else :
+                    return None,OTHER
+            elif value[0].isalpha() or value[0]== '_': 
+                for c in value:
+                    if c.isalnum() or c == '_':
+                        pass
+                    else :
+                        return None,OTHER
+                return value,NAME
             else:
                 try:
-                    return int(value)
+                    return int(value),EXP
                 except ValueError:
-                    return float(value)
-
+                    return float(value),EXP
+                except Exception:
+                    return None,OTHER
+        
         val = ''
         val_stack = Stack()
         op_stack = Stack()
@@ -119,52 +144,55 @@ class PyLuaTblParser:
         array = []
         is_array = True
         is_first = True
-        is_key = False
         map_index = 1
-
+        value = None
+        finish = False
         while True:
             if self.index >= self.length:
                 raise Exception('Table format wrong')
+            if value != None:
+                if op_stack.peek() == '=':
+                    op_stack.pop()
+                    key = val_stack.peek()
+                    val_stack.pop()
+                    if key == None or key[1]==NONE :
+                        raise Exception('Table format wrong')
+                    elif value[1] == NONE:
+                        pass
+                    else:
+                        if value[1]==EXP and (key[1]==KEY or key[1]==NAME ):                            
+                            map[key[0]] = value[0]
+                            is_array = False
+                        else :
+                            raise Exception('Table format wrong')  
+                else :
+                    if is_array:
+                        array.append(value[0])
+                    elif value[1] != None :
+                        map[map_index] = value[0]
+                        map_index += 1  
+                value = None 
+            if finish:
+                if is_array or len(map)==0:
+                    return array
+                else:
+                    return map               
             c = self.tableString[self.index]
             if c == '{' :
                 if is_first:
                     is_first = False
                 else :
                     item = self.process()
-                    if op_stack.peek() == '=':
-                        if val_stack.peek() != None and item != None:
-                            map[val_stack.peek()] = item
-                        val_stack.pop()
-                    else :
-                        if is_array:
-                            array.append(item)
-                        elif item != None:
-                            map[map_index] = item
-                            map_index += 1
-                             
-            elif c == '}':
-                if val != '':
-                    temp = get_val(val)
-                    val = ''
-                    if op_stack.peek() == '=':
-                        if val_stack.peek() != None and temp != None:
-                            map[val_stack.peek()] = temp
-                        val_stack.pop()
-                    else :
-                        if is_array:
-                            array.append(temp)
-                        elif temp != None:
-                            map[map_index] = temp
-                            map_index += 1
-                if is_array or len(map)==0:
-                    return array
-                else:
-                    return map
-            elif c == '[' :
-                op_stack.push(c)
-            elif c == ']' and op_stack.peek() == '[':
-                op_stack.pop()
-                is_key = True
+                    value = (item,EXP)                   
+            elif c == '}' and (val=='' or get_val(val)[1] != OTHER):#wrong
+                if not is_first:
+                    if val != '':
+                        value = get_val(val)
+                        val = ''
+                        finish = True
+                        continue
+                else : #'{}'not match
+                    raise Exception('Table format wrong')
             elif c == '=':
                 if is_array:
                     is_array = False
@@ -175,25 +203,10 @@ class PyLuaTblParser:
                 val_stack.push(get_val(val))
                 op_stack.push('=')
                 val = ''
-            elif c == ',':
+            elif c == ',' or c == ';':
                 if val != '':
-                    temp = get_val(val)
+                    value = get_val(val)
                     val = ''
-                    if op_stack.peek() == '=':
-                        if val_stack.peek() != None and temp != None:
-                            if isinstance(val_stack.peek(),int) or isinstance(val_stack.peek(),float):
-                                if is_key:
-                                    is_key = False
-                                else :
-                                    raise Exception('Table format wrong')
-                            map[val_stack.peek()] = temp
-                        val_stack.pop()
-                    else :
-                        if is_array:
-                            array.append(temp)
-                        elif temp != None: 
-                            map[map_index] = temp
-                            map_index += 1
             elif c == ' ':
                 pass
             elif c != ' ':

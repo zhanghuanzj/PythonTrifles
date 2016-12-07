@@ -1,6 +1,9 @@
 from PyLuaTblParser import PyLuaTblParser
 
 pl = PyLuaTblParser()
+#pl.load('{["\rjack"]=5}')
+#print pl.table
+#print pl.dump()
 #pl.load('{}')
 #print pl.table
 #print pl.dump()
@@ -56,6 +59,6 @@ pl = PyLuaTblParser()
 #pl.loadDict(pl.table)
 #print pl.dumpDict()
 
-pl.load('{"\rroot" = {65,23,5,}}')
+pl.load('{["\rroot"] = {65,23,5,},"jack"}')
 print pl.table
-print pl.dump()
+#print pl.dump()

@@ -34,7 +34,7 @@ class PyLuaTblParser:
         s = s.splitlines()
         self.tableString = ''
         for v in s:
-            self.tableString += v
+            self.tableString += v.strip()
         self.length = len(self.tableString)
         self.index = 0
         self.table = self.process()
@@ -113,7 +113,7 @@ class PyLuaTblParser:
         def get_val(value):
             value = value.strip()
             print 'Handling :'+value
-            if value == '':
+            if value == '' :
                 return None,OTHER
             elif value == 'nil':
                 return None,NONE
@@ -138,7 +138,10 @@ class PyLuaTblParser:
                 return value,NAME
             else:
                 try:
-                    return int(value),EXP
+                    if value.find(' ') == -1:
+                        return int(value),EXP
+                    else :
+                        return None,OTHER
                 except ValueError:
                     return float(value),EXP
                 except Exception:
@@ -154,10 +157,16 @@ class PyLuaTblParser:
         map_index = 1
         value = None
         finish = False
+        in_string = False 
+        has_esc = 0
         while True:
             if self.index >= self.length:
                 raise Exception('Table format wrong')
+            if has_esc == 1:
+                has_esc += 1
             if value != None:
+                if value[1] == OTHER:
+                    raise Exception('Table format wrong')  
                 if op_stack.peek() == '=':
                     op_stack.pop()
                     key = val_stack.peek()
@@ -175,23 +184,24 @@ class PyLuaTblParser:
                 else :
                     if is_array:
                         array.append(value[0])
-                    elif value[1] != None :
+                    elif value[1] != NONE :
                         map[map_index] = value[0]
                         map_index += 1  
                 value = None 
+                in_string = False
             if finish:
                 if is_array or len(map)==0:
                     return array
                 else:
                     return map               
             c = self.tableString[self.index]
-            if c == '{' :
+            if c == '{' and not in_string :
                 if is_first:
                     is_first = False
                 else :
                     item = self.process()
                     value = (item,EXP)                   
-            elif c == '}' and (val=='' or get_val(val)[1] != OTHER):#wrong
+            elif c == '}' and not in_string:
                 if not is_first:
                     if val != '':
                         value = get_val(val)
@@ -200,7 +210,7 @@ class PyLuaTblParser:
                     continue
                 else : #'{}'not match
                     raise Exception('Table format wrong')
-            elif c == '=':
+            elif c == '=' and not in_string :
                 if is_array:
                     is_array = False
                     for v in array:
@@ -210,14 +220,25 @@ class PyLuaTblParser:
                 val_stack.push(get_val(val))
                 op_stack.push('=')
                 val = ''
-            elif c == ',' or c == ';':
+            elif (c == ',' or c == ';') and not in_string:
                 if val != '':
                     value = get_val(val)
                     val = ''
-            elif c == ' ':
+            elif c == '"' and has_esc == 0: #not esc
+                if in_string:
+                    in_string = False
+                else:
+                    in_string = True
+                val = val + c
+            elif c == '\\' and in_string and has_esc!=2: #esc
+                has_esc = 1
+                val = val + c
+            elif c == ' ' and not in_string and val == '':
                 pass
-            elif c != ' ':
+            else :
                 val = val + c
             self.index += 1
+            if has_esc == 2:
+                has_esc = 0
     
 

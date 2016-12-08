@@ -31,10 +31,9 @@ class PyLuaTblParser:
 
     def load(self,s):
         #print '-------------------------------------------------------------------'
-        s = s.splitlines()
-        self.tableString = ''
-        for v in s:
-            self.tableString += v.strip()
+        self.tableString = s
+        #for v in s:
+        #    self.tableString += v.strip()
         self.length = len(self.tableString)
         self.index = 0
         self.table = self.process()
@@ -46,7 +45,10 @@ class PyLuaTblParser:
                 for k,v in value.items():
                     if type(k) in (str,int,float):
                         if isinstance(k,str):
-                            k = '"' + k + '"'
+                            if k.find("'") != -1 and k.find(r"\'") == -1 :
+                                k = '"' + k + '"'
+                            else:
+                                k = "'" + k + "'"
                         result = result + '[' + str(k) + ']' + '=' + str(dump_aux(v)) + ','
             elif type(value) == list or type(value) == tuple:
                 for v in value:
@@ -60,7 +62,10 @@ class PyLuaTblParser:
                 return 'nil'
             else:
                 if isinstance(value,str):
-                    value = '"' + value + '"'
+                    if value.find("'") != -1 and value.find(r"\'") == -1:
+                        value = '"' + value + '"'
+                    else:
+                        value = "'" + value + "'"
                 return value
             result += '}'
             return result
@@ -110,9 +115,16 @@ class PyLuaTblParser:
         return result
     
     def process(self):
+        def get_block_str(value):
+            if len(value)>1 and (value[0]=='=' and value[-1]=='='):
+                return get_block_str(value[1,-1])
+            elif len(value)>1 and (value[0]=='[' and value[-1]==']'):# ' " can all exist
+                return value[1:-1],EXP
+            else :
+                raise Exception('Table format wrong')
         def get_val(value):
             value = value.strip()
-            print 'Handling :'+value
+            #print 'Handling :'+value
             if value == '' :
                 return None,OTHER
             elif value == 'nil':
@@ -121,7 +133,7 @@ class PyLuaTblParser:
                 return False,BOOL
             elif value == 'true':
                 return True,BOOL
-            elif len(value)>1 and value[0] =='"' and value[-1]=='"':
+            elif len(value)>1 and ((value[0] =='"' and value[-1]=='"') or (value[0] =="'" and value[-1]=="'")):
                 return value[1:-1],EXP
             elif value[0] =='[' and value[-1]==']':
                 result = get_val(value[1:-1])
@@ -224,16 +236,19 @@ class PyLuaTblParser:
                 if val != '':
                     value = get_val(val)
                     val = ''
-            elif c == '"' and has_esc == 0: #not esc
+            elif (c == '"' or c == "'") and has_esc == 0: #not esc
                 if in_string:
-                    in_string = False
+                    if(c == op_stack.peek()):# "" '' match
+                        in_string = False
+                        op_stack.pop()
                 else:
                     in_string = True
+                    op_stack.push(c)
                 val = val + c
             elif c == '\\' and in_string and has_esc!=2: #esc
                 has_esc = 1
                 val = val + c
-            elif c == ' ' and not in_string and val == '':
+            elif (c in (' ','\n','\r','\t')) and not in_string and val == '':
                 pass
             else :
                 val = val + c

@@ -49,10 +49,9 @@ class PyLuaTblParser:
                 for k,v in value.items():
                     if type(k) in (str,int,float):
                         if isinstance(k,str):
-                            #if (k.find("'") != -1 and k.find(r"\'") == -1) and (k.find('"') != -1 and k.find(r'\"') == -1) :
-                            #    k = '[' + k + ']'
-                            #el
-                            if k.find("'") != -1 and k.find(r"\'") == -1 :
+                            if (k.find("'") != -1 ) and (k.find('"') != -1) :
+                                k = '[' + k + ']'
+                            elif k.find("'") != -1:
                                 k = '"' + k + '"'
                             else:
                                 k = "'" + k + "'"
@@ -173,7 +172,33 @@ class PyLuaTblParser:
                     else: # seprate character
                         return result,NAME,index
                 index += 1
+        
+        # Number analysis
+        def get_number(value,index):
+            START,ZERO,BEG,POINT,EXPO,END,HEX = 0,1,2,3,4,5,6
+            state = START
+            result = ''
+            if value[index] in '+-':
+                result += value[index]
+                index += 1
+            while True:
+                c = value[index]
+                if state == START:
+                    pass # contining
+                index += 1
+            #result = ''
+            #while True:
+            #    c = value[index]
+            #    if c.isdigit() or c == '.':
+            #        result += c
+            #    else:
+            #        try:
+            #            return int(result),index
+            #        except ValueError:
+            #            return float(result),index
+            #    index += 1
 
+        # [==[string]==] analysis
         def get_bracket_str(value,index):
             BEG,START,EQUAL,MID,END,NUMA = 0,1,2,3,4,5
             beg = index
@@ -193,70 +218,47 @@ class PyLuaTblParser:
                         state = NUMA
                         continue
                     elif c.isdigit():
-                        #num analysis
-                        pass
+                        var = get_number(value,index)
+                        index = var[1]
+                        state = NUMA
+                        continue
                     elif c == '=':
                         state = EQUAL
+                    elif c == '[':
+                        end = index
+                        state = MID
                     else:
                         raise Exception('Table format wrong')
                 elif state == EQUAL:
                     if c == '=':
                         state = EQUAL
                     elif c == '[':
+                        end = index
                         state = MID
                     else:
                         raise Exception('Table format wrong')
                 elif state == MID:
-                    
-         
-        def get_block_str(value):
-            if len(value)>1 and (value[0]=='=' and value[-1]=='='):
-                return get_block_str(value[1,-1])
-            elif len(value)>1 and (value[0]=='[' and value[-1]==']'):# ' " can all exist
-                return value[1:-1],EXP
-            else :
-                raise Exception('Table format wrong')
-        def get_val(value):
-            value = value.strip()
-            #print 'Handling :'+value
-            if value == '' :
-                return None,OTHER
-            elif value == 'nil':
-                return None,NONE
-            elif value == 'false':
-                return False,BOOL
-            elif value == 'true':
-                return True,BOOL
-            elif len(value)>1 and ((value[0] =='"' and value[-1]=='"') or (value[0] =="'" and value[-1]=="'")):
-                return value[1:-1],EXP
-            elif value[0] =='[' and value[-1]==']':
-                
-                if len(value)>2 and ((value[1] =='[' and value[-2]==']') or (value[1] =='[' and value[-2]==']')):
-                    return get_block_str(value[1:-1])
-                else:
-                    result = get_val(value[1:-1])
-                    if result[1] in (EXP,BOOL):
-                        return result[0],KEY
+                    if c == ']':
+                        state = END
+                        pivot = end
+                        continue
                     else :
-                        return None,OTHER
-            elif value[0].isalpha() or value[0]== '_': 
-                for c in value:
-                    if c.isalnum() or c == '_':
-                        pass
-                    else :
-                        return None,OTHER
-                return value,NAME
-            else:
-                try:
-                    if value.find(' ') == -1:
-                        return int(value),EXP
-                    else :
-                        return None,OTHER
-                except ValueError:
-                    return float(value),EXP
-                except Exception:
-                    return None,OTHER
-        
+                        result += c
+                elif state == END:
+                    if (value[pivot] == c and c == '=') or (value[pivot] == '[' and c == ']'):# match finish
+                        if pivot == beg:
+                            return result,EXP,index+1
+                        pivot -= 1
+                    else:   # back to END
+                        state = MID
+                        result += value[index-(end-pivot):index+1]
+                elif state == NUMA:
+                    if c == ']':
+                        return var[0],KEY,index+1
+                    else:
+                        raise Exception('Table format wrong')
+                index += 1        
+       
         val = r''
         val_stack = Stack()
         op_stack = Stack()
@@ -265,35 +267,35 @@ class PyLuaTblParser:
         is_array = True
         is_first = True
         map_index = 1
+        need_store = False
         finish = False 
         while True:
             if self.index >= self.length:
                 raise Exception('Table format wrong')
             if need_store:
-                if val_stack.is_empty():
-                    pass
-                value = val_stack.peek()
-                val_stack.pop()
-                if op_stack.peek() == '=':
-                    op_stack.pop()
-                    key = val_stack.peek()
+                if not val_stack.is_empty():
+                    value = val_stack.peek()
                     val_stack.pop()
-                    if key == None or key[1]==NONE :
-                        raise Exception('Table format wrong')
-                    elif value[1] == NONE:
-                        pass
-                    else:
-                        if (value[1]==EXP or value[1]==BOOL) and (key[1]==KEY or key[1]==NAME ):                            
-                            map[key[0]] = value[0]
-                            is_array = False
-                        else :
-                            raise Exception('Table format wrong')  
-                else :
-                    if is_array:
-                        array.append(value[0])
-                    elif value[1] != NONE :
-                        map[map_index] = value[0]
-                        map_index += 1  
+                    if not op_stack.is_empty() and op_stack.peek() == '=':
+                        op_stack.pop()
+                        key = val_stack.peek()
+                        val_stack.pop()
+                        if key[1]==NONE :
+                            raise Exception('Table format wrong')
+                        elif value[1] == NONE:
+                            pass
+                        else:
+                            if (value[1]==EXP or value[1]==BOOL) and (key[1]==KEY or key[1]==NAME ):                            
+                                map[key[0]] = value[0]
+                                is_array = False
+                            else :
+                                raise Exception('Table format wrong')  
+                    else :
+                        if is_array:
+                            array.append(value[0])
+                        elif value[1] != NONE :
+                            map[map_index] = value[0]
+                            map_index += 1  
                 need_store = False 
             if finish:# Finish and check
                 if (not val_stack.is_empty()) or (not op_stack.is_empty()) :
@@ -308,12 +310,11 @@ class PyLuaTblParser:
                     is_first = False
                 else :
                     item = self.process()
-                    val_stack.push(item,EXP)   
+                    val_stack.push((item,EXP))   
                     need_store = True                
             elif c == '}':
                 if not is_first:
-                    if not val_stack.is_empty():
-                        need_store = True
+                    need_store = True
                     finish = True
                     continue
                 else : #'{}'not match
@@ -328,14 +329,24 @@ class PyLuaTblParser:
                 op_stack.push('=')
             elif (c == ',' or c == ';') :
                 need_store = True
-            elif (c == '"' or c == "'"): # Get String
+            elif (c == '"' or c == "'"):    # Get String
                 v = get_str(self.tableString,self.index)
-                val_stack.push(v[0],EXP)
+                val_stack.push((v[0],EXP))
                 self.index = v[1]
+                continue
+            elif c.isdigit() or c in '+-':               # Get Number
+                v = get_number(self.tableString,self.index)
+                val_stack.push((v[0],EXP))
+                self.index = v[1]
+                continue
+            elif c == '[':                  # Get [[]] or []
+                v = get_bracket_str(self.tableString,self.index)
+                val_stack.push((v[0],v[1]))
+                self.index = v[2]
                 continue
             elif c.isalpha() or c == '_': # Get Name , bool , None
                 v = get_name(self.tableString,self.index)
-                val_stack.push(v[0],v[1])
+                val_stack.push((v[0],v[1]))
                 self.index = v[2]
                 continue
             elif c in (' ','\n','\r','\t'): # Skip

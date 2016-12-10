@@ -4,7 +4,6 @@ BOOL = "BOOL"
 EXP = "EXP" #str | num
 NAME = "NAME"
 KEY = "KEY"
-OTHER = "OTHER"
 
 class Stack:
     def __init__(self):
@@ -33,7 +32,10 @@ class PyLuaTblParser:
 
     def load(self,s):
         #print '-------------------------------------------------------------------'
-        self.tableString = s
+        #self.tableString = self.remove_comment(s)
+        self.tableString = s.strip()
+        #if self.tableString[0] != '{':
+        #    raise Exception('Table format wrong')
         #for v in s:
         #    self.tableString += v.strip()
         self.length = len(self.tableString)
@@ -68,10 +70,6 @@ class PyLuaTblParser:
                 return 'nil'
             else:
                 if isinstance(value,str):
-                    #print value.find(r'"')
-                    #print value.find(r'\"') 
-                    #print value.find(r"'") 
-                    #print value.find(r"\'")
                     if (value.find("'") != -1) and (value.find('"') != -1 ) :
                         value = '[[' + value + ']]'
                     elif value.find("'") != -1 :
@@ -85,21 +83,19 @@ class PyLuaTblParser:
     
     def loadLuaTable(self, f):
         try :
-            tableString = ''
             table_file = open(f)
-            lines = table_file.readlines()
-            for line in lines:
-                tableString += line.strip()
+            tableString = table_file.read()
             self.load(tableString)
+            table_file.close()
         except IOError,e:
-            print e
+            raise IOError
     def dumpLuaTable(self, f):
         try :
             table_file = open(f,'w')
             table_file.write(self.dump())
             table_file.close()
         except IOError,e:
-            print e
+            raise IOError
     
     def loadDict(self,d):
         self.table = self.acquire(d)
@@ -125,8 +121,106 @@ class PyLuaTblParser:
                     v = self.acquire(v)
                 result.append(v)
         return result
-    
+        
+    #def remove_comment(self,value):
+    #    while True:
+    #        length = len(value)
+    #        index = value.find('--')
+    #        if index == -1:
+    #            return value.strip()
+    #        else:
+    #            beg = index + 2
+    #            end,index = beg,beg
+    #            BEG,START,MID,END,LINE = 0,1,2,3,4
+    #            pivot = 0
+    #            state = BEG
+    #            while True:
+    #                if index >= length:
+    #                    raise Exception('Table format wrong')
+    #                c = value[index]
+    #                if state == BEG:
+    #                    if c == '[':
+    #                        state = START
+    #                    else :
+    #                        state = LINE
+    #                elif state == START:
+    #                    if c == '=':
+    #                        pass
+    #                    elif c == '[':
+    #                        end = index
+    #                        state = MID
+    #                    else:
+    #                        state = LINE
+    #                elif state == MID:
+    #                    if c == ']':
+    #                        state = END
+    #                        pivot = end
+    #                        continue
+    #                elif state == END:
+    #                    if (value[pivot] == c and c == '=') or (value[pivot] == '[' and c == ']'):# match finish
+    #                        if pivot == beg: #comment match over
+    #                            value = value[:beg-2]+value[index+1:]
+    #                            break
+    #                        pivot -= 1
+    #                    else:   # back to END
+    #                        state = MID
+    #                elif state == LINE:
+    #                    line_index = value.find('\n',beg-2)
+    #                    if line_index == -1:
+    #                        value = value[:beg-2]
+    #                    else:
+    #                        value = value[:beg-2] + value[line_index+1:]
+    #                    break
+    #                index += 1
     def process(self):
+        def remove_comment(value,index):
+            while True:
+                length = len(value)
+                if index == -1:
+                    return value.strip()
+                else:
+                    beg = index + 2
+                    end,index = beg,beg
+                    BEG,START,MID,END,LINE = 0,1,2,3,4
+                    pivot = 0
+                    state = BEG
+                    while True:
+                        if index >= length:
+                            raise Exception('Table format wrong')
+                        c = value[index]
+                        if state == BEG:
+                            if c == '[':
+                                state = START
+                            else :
+                                state = LINE
+                        elif state == START:
+                            if c == '=':
+                                pass
+                            elif c == '[':
+                                end = index
+                                state = MID
+                            else:
+                                state = LINE
+                        elif state == MID:
+                            if c == ']':
+                                state = END
+                                pivot = end
+                                continue
+                        elif state == END:
+                            if (value[pivot] == c and c == '=') or (value[pivot] == '[' and c == ']'):# match finish
+                                if pivot == beg: #comment match over
+                                    return index+1
+                                pivot -= 1
+                            else:   # back to END
+                                state = MID
+                        elif state == LINE:
+                            line_index = value.find('\n',beg-2)
+                            if line_index == -1:
+                                return length
+                            else:
+                                return line_index + 1
+                            break
+                        index += 1
         #String Analysis
         def get_str(value,index):
             result = ''
@@ -250,7 +344,7 @@ class PyLuaTblParser:
 
         # [==[string]==] analysis
         def get_bracket_str(value,index):
-            BEG,START,EQUAL,MID,END,NUMA = 0,1,2,3,4,5
+            BEG,START,EQUAL,MID,END,NUMA,SPACE = 0,1,2,3,4,5,6
             beg = index
             end = index
             pivot = 0
@@ -263,20 +357,18 @@ class PyLuaTblParser:
                     state = START
                 elif state == START:
                     if c in ('"',"'"):
-                        var = get_str(value,index)
-                        index = var[1]
-                        state = NUMA
+                        state = SPACE
                         continue
                     elif c.isdigit() or c in '.-':
-                        var = get_number(value,index)
-                        index = var[1]
-                        state = NUMA
+                        state = SPACE
                         continue
                     elif c == '=':
                         state = EQUAL
                     elif c == '[':
                         end = index
                         state = MID
+                    elif c in (' ','\n','\r','\t'):
+                        state = SPACE
                     else:
                         raise Exception('Table format wrong')
                 elif state == EQUAL:
@@ -305,9 +397,34 @@ class PyLuaTblParser:
                 elif state == NUMA:
                     if c == ']':
                         return var[0],KEY,index+1
+                    elif c in (' ','\n','\r','\t'):
+                        pass
                     else:
                         raise Exception('Table format wrong')
-                index += 1        
+                elif state == SPACE:
+                    if c in (' ','\n','\r','\t'):
+                        pass
+                    elif c in ('"',"'"):
+                        var = get_str(value,index)
+                        index = var[1]
+                        state = NUMA
+                        continue
+                    elif c.isdigit() or c in '.-':
+                        var = get_number(value,index)
+                        index = var[1]
+                        state = NUMA
+                        continue
+                    elif c == '[':
+                        var = get_bracket_str(value,index)
+                        if var[1] == EXP:
+                            state = NUMA
+                            index = var[2]
+                            continue
+                        else:
+                            raise Exception('Table format wrong')
+                    else:
+                        raise Exception('Table format wrong')
+                index += 1   
        
         val = r''
         val_stack = Stack()
@@ -339,7 +456,73 @@ class PyLuaTblParser:
                                 map[key[0]] = value[0]
                                 is_array = False
                             else :
-                                raise Exception('Table format wrong')  
+                                if value[1] == KEY:
+                                    if key[1] == BOOL:
+                                        raise Exception('Table format wrong')  
+                                    elif key[1] == EXP:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == KEY:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NAME:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NONE:
+                                        raise Exception('Table format wrong') 
+                                    else:
+                                        raise Exception('Table format wrong')  
+                                elif value[1] == NAME:
+                                    if key[1] == BOOL:
+                                        raise Exception('Table format wrong')  
+                                    elif key[1] == EXP:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == KEY:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NAME:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NONE:
+                                        raise Exception('Table format wrong') 
+                                    else:
+                                        raise Exception('Table format wrong')    
+                                elif value[1] == EXP:
+                                    if key[1] == BOOL:
+                                        raise Exception('Table format wrong')  
+                                    elif key[1] == EXP:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == KEY:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NAME:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NONE:
+                                        raise Exception('Table format wrong') 
+                                    else:
+                                        raise Exception('Table format wrong')  
+                                elif value[1] == BOOL:
+                                    if key[1] == BOOL:
+                                        raise Exception('Table format wrong')  
+                                    elif key[1] == EXP:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == KEY:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NAME:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NONE:
+                                        raise Exception('Table format wrong') 
+                                    else:
+                                        raise Exception('Table format wrong')  
+                                elif value[1] == NONE:
+                                    if key[1] == BOOL:
+                                        raise Exception('Table format wrong')  
+                                    elif key[1] == EXP:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == KEY:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NAME:
+                                        raise Exception('Table format wrong') 
+                                    elif key[1] == NONE:
+                                        raise Exception('Table format wrong') 
+                                    else:
+                                        raise Exception('Table format wrong')
+                                else:  
+                                    raise Exception('Table format wrong')  
                     else :
                         if is_array:
                             array.append(value[0])
@@ -383,6 +566,9 @@ class PyLuaTblParser:
                 v = get_str(self.tableString,self.index)
                 val_stack.push((v[0],EXP))
                 self.index = v[1]
+                continue
+            elif c == '-' and self.tableString[self.index+1] == '-':
+                self.index = remove_comment(self.tableString,self.index)
                 continue
             elif c.isdigit() or c in '-.':  # Get Number
                 v = get_number(self.tableString,self.index)

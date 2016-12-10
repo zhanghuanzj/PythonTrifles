@@ -16,7 +16,25 @@ def test_f(fi,fo):
     pl.testLuaTable('test.txt')
     pl.dumpLuaTable('out.txt')
 
+test('''{23,aa=23,23,  
+                {bbb=23,"dsd",false,nil,  --jfsdlkjf
+                    {32,ccc="23dd",  
+                        {23,"sdfsdf",  
+                            {234,addd="23233jjjjsdOK"}  --fdsj
+                        }  
+                    }  --[=[jfdk
+jsdlfjsal
+fsldkjf
+fjasd
+]=]
+                },  
+                {dd = "sd",23},  
+            true  
+            }  ''')
 
+test('{[3300.0]=45,[300.0]=45,[0.03]=45,}')
+test('{3e2}')
+test('{b=-2}')
 test('''{
 	x=1,
 	y=2,
@@ -266,8 +284,11 @@ test('''{'[==[
      alo
      123"]==]',jack = 09}''')
 
-print float('+3E+02')
-print int('0x0E',16)
+print 3e+2
+test('{[0x34]=45}')
+test('''{[0x34]=45,[0X34]=45,[034]=45,[3e2]=45,[3e-2]=45,[3e+2]=45,[3.3e3]=45,
+{{[0x34]=45.3,[0X34]=-45,[034]=+45e-3,[3e4]=0xabcdefABCEDF45,[3e-2]=45,[3e+2]=45,[3.3e3]=45,},}}
+''')
 
-ha = '+'
-print ha in '+-'
+test('{314.16e-2,.34,[.3e2]=.8,- 4,-43.4e3}')
+

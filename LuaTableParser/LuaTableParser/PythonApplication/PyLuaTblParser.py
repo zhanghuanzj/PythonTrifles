@@ -33,7 +33,7 @@ class PyLuaTblParser:
 
     def load(self,s):
         #print '-------------------------------------------------------------------'
-        self.tableString = s.strip()
+        self.tableString = s
         #for v in s:
         #    self.tableString += v.strip()
         self.length = len(self.tableString)
@@ -156,7 +156,6 @@ class PyLuaTblParser:
             result = ''
             while True:
                 c = value[index]
-                
                 if c.isalnum() or c == '_':
                     result += c
                 else:
@@ -178,25 +177,76 @@ class PyLuaTblParser:
             START,ZERO,BEG,POINT,EXPO,END,HEX = 0,1,2,3,4,5,6
             state = START
             result = ''
-            if value[index] in '+-':
+            flag = False
+            if value[index] == '-':
                 result += value[index]
                 index += 1
+                flag = True
             while True:
                 c = value[index]
                 if state == START:
-                    pass # contining
+                    if c == '0':
+                        state = ZERO
+                    elif c.isdigit():
+                        state = BEG
+                    elif c == '.':
+                        state = POINT
+                    elif flag and c in(' ','\n','\r','\t'):
+                        pass
+                    else:
+                        if result == '-':
+                            if c.isalpha():
+                                raise Exception('Table format wrong -- Number analysis ')
+                            elif c == '-':
+                                raise Exception('Table format wrong -- Number analysis ')
+                            elif c in '~!@#$%^%&*()_+\":':
+                                raise Exception('Table format wrong -- Number analysis ')
+                            else:
+                                raise Exception('Table format wrong -- Number analysis ')
+                        else:
+                            raise Exception('Table format wrong -- Number analysis ')
+                elif state == ZERO:
+                    if c in 'xX':
+                        state = HEX
+                    elif c.isdigit():
+                        state = BEG
+                    elif c == '.':
+                        state = POINT
+                    else :
+                        return 0,index
+                elif state == BEG:
+                    if c.isdigit():
+                        pass
+                    elif c == '.':
+                        state = POINT
+                    elif c in 'eE':
+                        state = EXPO
+                    else:
+                        return int(result),index
+                elif state == POINT:
+                    if c.isdigit():
+                        pass
+                    elif c in 'eE':
+                        state = EXPO
+                    else:
+                        return float(result),index
+                elif state == EXPO:
+                    if c in '+-' or c.isdigit():
+                        state = END
+                    else:
+                        raise Exception('Table format wrong -- Number analysis')
+                elif state == END:
+                    if c.isdigit():
+                        pass
+                    else:
+                        return float(result),index
+                elif state == HEX:
+                    if c.isdigit() or c in 'abcdefABCDEF':
+                        pass
+                    else:
+                        return int(result,16),index
+                result += c
                 index += 1
-            #result = ''
-            #while True:
-            #    c = value[index]
-            #    if c.isdigit() or c == '.':
-            #        result += c
-            #    else:
-            #        try:
-            #            return int(result),index
-            #        except ValueError:
-            #            return float(result),index
-            #    index += 1
 
         # [==[string]==] analysis
         def get_bracket_str(value,index):
@@ -217,7 +267,7 @@ class PyLuaTblParser:
                         index = var[1]
                         state = NUMA
                         continue
-                    elif c.isdigit():
+                    elif c.isdigit() or c in '.-':
                         var = get_number(value,index)
                         index = var[1]
                         state = NUMA
@@ -334,7 +384,7 @@ class PyLuaTblParser:
                 val_stack.push((v[0],EXP))
                 self.index = v[1]
                 continue
-            elif c.isdigit() or c in '+-':               # Get Number
+            elif c.isdigit() or c in '-.':  # Get Number
                 v = get_number(self.tableString,self.index)
                 val_stack.push((v[0],EXP))
                 self.index = v[1]
@@ -349,10 +399,8 @@ class PyLuaTblParser:
                 val_stack.push((v[0],v[1]))
                 self.index = v[2]
                 continue
-            elif c in (' ','\n','\r','\t'): # Skip
+            else : # Skip in (' ','\n','\r','\t')
                 pass
-            else :
-                val = val + c
             self.index += 1
 
     

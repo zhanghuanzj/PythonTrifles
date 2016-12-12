@@ -32,29 +32,29 @@ class Stack:
 class PyLuaTblParser:
 
     def load(self,s):
-        self.tableString = s
-        ##print '-------------------------------------------------------------------'
-        ##self.tableString = self.remove_comment(s)
-        #self.tableString = s.strip()
-        ##if self.tableString[0] != '{':
-        ##    raise Exception('Table format wrong')
-        ##for v in s:
-        ##    self.tableString += v.strip()
+        #self.tableString = s
+        #print '-------------------------------------------------------------------'
+        #self.tableString = self.remove_comment(s)
+        self.tableString = s.strip()
+        #if self.tableString[0] != '{':
+        #    raise Exception('Table format wrong')
+        #for v in s:
+        #    self.tableString += v.strip()
         self.length = len(self.tableString)
         self.index = 0
-        self.test(self.tableString)
-        #self.table = self.process()
-        #self.index += 1
-        #while self.index < self.length:
-        #    c = self.tableString[self.index]
-        #    if c == '-' and self.tableString[self.index+1] == '-':
-        #        self.index = self.remove_comment(self.tableString,self.index)
-        #        continue
-        #    elif c in SKIP_CHARACTOR:
-        #        pass
-        #    else:
-        #        raise Exception('Table format wrong')
-        #    self.index += 1
+        #self.test(self.tableString)
+        self.table = self.process()
+        self.index += 1
+        while self.index < self.length:
+            c = self.tableString[self.index]
+            if c == '-' and self.tableString[self.index+1] == '-':
+                self.index = self.remove_comment(self.tableString,self.index)
+                continue
+            elif c in SKIP_CHARACTOR:
+                pass
+            else:
+                raise Exception('Table format wrong')
+            self.index += 1
     
     def dump(self):#dict key handling
         def bracket_count(value):
@@ -279,6 +279,8 @@ class PyLuaTblParser:
                 if index >= self.length:
                     raise Exception('Table format wrong -- string analysis')
                 c = value[index]
+                if c == '\x08':
+                    print '==========================='
                 index += 1
                 if (c == '"' or c == "'") and not has_esc: #begin or end
                     if in_string:
@@ -491,6 +493,7 @@ class PyLuaTblParser:
         is_separate = False
         while True:
             if self.index >= self.length:
+                print self.tableString[:self.index]
                 raise Exception('Table format wrong')
             if need_store:
                 if is_separate :
@@ -514,8 +517,8 @@ class PyLuaTblParser:
                                     for v in array:
                                         if v != None:
                                             map[map_index] = v
-                                            index_set.append(map_index)
-                                            map_index += 1
+                                        index_set.append(map_index)
+                                        map_index += 1
                                 if not (key[0] in index_set): # value not occupy                        
                                     map[key[0]] = value[0]
                                 is_array = False
@@ -588,10 +591,13 @@ class PyLuaTblParser:
                                 else:  
                                     raise Exception('Table format wrong')  
                     else :
+                        if value[1] == KEY:
+                            raise Exception('Table format wrong -- key can not be a value')
                         if is_array:
                             array.append(value[0])
-                        elif value[1] != NONE :
-                            map[map_index] = value[0]
+                        else :
+                            if value[1] != NONE :
+                                map[map_index] = value[0]
                             index_set.append(map_index)
                             map_index += 1 
                 is_separate = False 
@@ -648,6 +654,8 @@ class PyLuaTblParser:
             elif c in (' ','\n','\r','\t') : # Skip in (' ','\n','\r','\t')
                 pass
             else:
+                print "THE:",c
+                print self.tableString[:self.index]
                 raise Exception('Table format wrong')
             self.index += 1
 
@@ -719,7 +727,7 @@ class PyLuaTblParser:
                 self.test(value)
             elif c == '?':
                 self.test(value)
-            
+        
             elif c == '@':
                 self.test(value)
             elif c == 'A':
@@ -846,6 +854,20 @@ class PyLuaTblParser:
             elif c == '}':
                 self.test(value)
             elif c == '~':
+                self.test(value)
+            elif c == '\n':
+                self.test(value)
+            elif c == '\t':
+                self.test(value)
+            elif c == '\a':
+                self.test(value)
+            elif c == '\b':
+                self.test(value)
+            elif c == '\f':
+                self.test(value)
+            elif c == '\r':
+                self.test(value)
+            elif c == '\\':
                 self.test(value)
             else:
                 self.test(value)

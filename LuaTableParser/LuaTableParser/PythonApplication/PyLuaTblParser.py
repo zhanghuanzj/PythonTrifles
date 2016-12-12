@@ -4,6 +4,7 @@ BOOL = "BOOL"
 EXP = "EXP" #str | num
 NAME = "NAME"
 KEY = "KEY"
+SKIP_CHARACTOR = (' ','\n','\r','\t')
 
 class Stack:
     def __init__(self):
@@ -31,20 +32,64 @@ class Stack:
 class PyLuaTblParser:
 
     def load(self,s):
-        #print '-------------------------------------------------------------------'
-        #self.tableString = self.remove_comment(s)
-        self.tableString = s.strip()
-        #if self.tableString[0] != '{':
-        #    raise Exception('Table format wrong')
-        #for v in s:
-        #    self.tableString += v.strip()
+        self.tableString = s
+        ##print '-------------------------------------------------------------------'
+        ##self.tableString = self.remove_comment(s)
+        #self.tableString = s.strip()
+        ##if self.tableString[0] != '{':
+        ##    raise Exception('Table format wrong')
+        ##for v in s:
+        ##    self.tableString += v.strip()
         self.length = len(self.tableString)
         self.index = 0
-        self.table = self.process()
-        if self.index != self.length-1:
-            raise Exception('Table format wrong')
+        self.test(self.tableString)
+        #self.table = self.process()
+        #self.index += 1
+        #while self.index < self.length:
+        #    c = self.tableString[self.index]
+        #    if c == '-' and self.tableString[self.index+1] == '-':
+        #        self.index = self.remove_comment(self.tableString,self.index)
+        #        continue
+        #    elif c in SKIP_CHARACTOR:
+        #        pass
+        #    else:
+        #        raise Exception('Table format wrong')
+        #    self.index += 1
     
     def dump(self):#dict key handling
+        def bracket_count(value):
+            a,b,c,d = 1,2,3,4
+            state = a
+            index,count,record = 0,0,0
+            length = len(value)
+            while index < length:
+                c = value[index]
+                if state == a:
+                    if c == ']':
+                        state = b
+                elif state == b:
+                    if c == '=':
+                        count += 1
+                        state = c
+                    elif c == ']':
+                       state = d
+                    else:
+                        state = a
+                elif state == c:
+                    if c == '=':
+                        count += 1
+                    elif c == ']':
+                        state = d
+                    else:
+                        state = a
+                elif state == d:
+                    count += 1
+                    if count > record:
+                        record = count
+                    count = 0
+                index += 1
+            return record
+                
         def dump_aux(value):
             result = '{'
             if type(value) == dict:
@@ -52,12 +97,13 @@ class PyLuaTblParser:
                     if type(k) in (str,int,float):
                         if isinstance(k,str):
                             if (k.find("'") != -1 ) and (k.find('"') != -1) :
-                                k = '[' + k + ']'
+                                count = bracket_count(k)
+                                k = '['+'='*count+'[' + k + ']'+'='*count+']'
                             elif k.find("'") != -1:
                                 k = '"' + k + '"'
                             else:
                                 k = "'" + k + "'"
-                        result = result + '[' + str(k) + ']' + '=' + str(dump_aux(v)) + ','
+                        result = result + '[ ' + str(k) + ' ]' + '=' + str(dump_aux(v)) + ','
             elif type(value) == list or type(value) == tuple:
                 for v in value:
                     result += str(dump_aux(v)) + ','
@@ -71,7 +117,8 @@ class PyLuaTblParser:
             else:
                 if isinstance(value,str):
                     if (value.find("'") != -1) and (value.find('"') != -1 ) :
-                        value = '[[' + value + ']]'
+                         count = bracket_count(value)
+                         value = '['+'='*count+'[' + value + ']'+'='*count+']'
                     elif value.find("'") != -1 :
                         value = '"' + value + '"'
                     else:
@@ -108,7 +155,7 @@ class PyLuaTblParser:
         if type(d) == dict:
             result = {}
             for k,v in d.items():
-                if str(k).isdigit or isinstance(k,str) and v != None: #Check key&value is valid
+                if (isinstance(k,int) or isinstance(k,float) or isinstance(k,str)) and v != None : #Check key&value is valid
                     if type(v) == tuple:
                         v = list(v)
                     if type(v) == dict or type(v) == list:
@@ -121,7 +168,7 @@ class PyLuaTblParser:
                     v = self.acquire(v)
                 result.append(v)
         return result
-        
+    
     #def remove_comment(self,value):
     #    while True:
     #        length = len(value)
@@ -172,55 +219,56 @@ class PyLuaTblParser:
     #                        value = value[:beg-2] + value[line_index+1:]
     #                    break
     #                index += 1
+    def remove_comment(self,value,index):
+        while True:
+            length = len(value)
+            if index == -1:
+                return value.strip()
+            else:
+                beg = index + 2
+                end,index = beg,beg
+                BEG,START,MID,END,LINE = 0,1,2,3,4
+                pivot = 0
+                state = BEG
+                while True:
+                    if index >= length:
+                        raise Exception('Table format wrong')
+                    c = value[index]
+                    if state == BEG:
+                        if c == '[':
+                            state = START
+                        else :
+                            state = LINE
+                    elif state == START:
+                        if c == '=':
+                            pass
+                        elif c == '[':
+                            end = index
+                            state = MID
+                        else:
+                            state = LINE
+                    elif state == MID:
+                        if c == ']':
+                            state = END
+                            pivot = end
+                            continue
+                    elif state == END:
+                        if (value[pivot] == c and c == '=') or (value[pivot] == '[' and c == ']'):# match finish
+                            if pivot == beg: #comment match over
+                                return index+1
+                            pivot -= 1
+                        else:   # back to END
+                            state = MID
+                    elif state == LINE:
+                        line_index = value.find('\n',beg-2)
+                        if line_index == -1:
+                            return length
+                        else:
+                            return line_index + 1
+                        break
+                    index += 1
     def process(self):
-        def remove_comment(value,index):
-            while True:
-                length = len(value)
-                if index == -1:
-                    return value.strip()
-                else:
-                    beg = index + 2
-                    end,index = beg,beg
-                    BEG,START,MID,END,LINE = 0,1,2,3,4
-                    pivot = 0
-                    state = BEG
-                    while True:
-                        if index >= length:
-                            raise Exception('Table format wrong')
-                        c = value[index]
-                        if state == BEG:
-                            if c == '[':
-                                state = START
-                            else :
-                                state = LINE
-                        elif state == START:
-                            if c == '=':
-                                pass
-                            elif c == '[':
-                                end = index
-                                state = MID
-                            else:
-                                state = LINE
-                        elif state == MID:
-                            if c == ']':
-                                state = END
-                                pivot = end
-                                continue
-                        elif state == END:
-                            if (value[pivot] == c and c == '=') or (value[pivot] == '[' and c == ']'):# match finish
-                                if pivot == beg: #comment match over
-                                    return index+1
-                                pivot -= 1
-                            else:   # back to END
-                                state = MID
-                        elif state == LINE:
-                            line_index = value.find('\n',beg-2)
-                            if line_index == -1:
-                                return length
-                            else:
-                                return line_index + 1
-                            break
-                        index += 1
+        
         #String Analysis
         def get_str(value,index):
             result = ''
@@ -351,6 +399,7 @@ class PyLuaTblParser:
             state = BEG
             result = ''
             var = None
+            is_first = True
             while True:
                 c = value[index]
                 if state == BEG:
@@ -384,6 +433,8 @@ class PyLuaTblParser:
                         state = END
                         pivot = end
                         continue
+                    elif c == '\n' and is_first:
+                        is_first = False
                     else :
                         result += c
                 elif state == END:
@@ -429,6 +480,7 @@ class PyLuaTblParser:
         val = r''
         val_stack = Stack()
         op_stack = Stack()
+        index_set = []
         map = {}
         array = []
         is_array = True
@@ -436,10 +488,15 @@ class PyLuaTblParser:
         map_index = 1
         need_store = False
         finish = False 
+        is_separate = False
         while True:
             if self.index >= self.length:
                 raise Exception('Table format wrong')
             if need_store:
+                if is_separate :
+                    if val_stack.is_empty():
+                        print self.tableString[:self.index]
+                        raise Exception('Table format wrong -- separate need value')
                 if not val_stack.is_empty():
                     value = val_stack.peek()
                     val_stack.pop()
@@ -452,8 +509,15 @@ class PyLuaTblParser:
                         elif value[1] == NONE:
                             pass
                         else:
-                            if (value[1]==EXP or value[1]==BOOL) and (key[1]==KEY or key[1]==NAME ):                            
-                                map[key[0]] = value[0]
+                            if (value[1]==EXP or value[1]==BOOL) and (key[1]==KEY or key[1]==NAME ):   
+                                if is_array:
+                                    for v in array:
+                                        if v != None:
+                                            map[map_index] = v
+                                            index_set.append(map_index)
+                                            map_index += 1
+                                if not (key[0] in index_set): # value not occupy                        
+                                    map[key[0]] = value[0]
                                 is_array = False
                             else :
                                 if value[1] == KEY:
@@ -528,7 +592,9 @@ class PyLuaTblParser:
                             array.append(value[0])
                         elif value[1] != NONE :
                             map[map_index] = value[0]
-                            map_index += 1  
+                            index_set.append(map_index)
+                            map_index += 1 
+                is_separate = False 
                 need_store = False 
             if finish:# Finish and check
                 if (not val_stack.is_empty()) or (not op_stack.is_empty()) :
@@ -543,8 +609,7 @@ class PyLuaTblParser:
                     is_first = False
                 else :
                     item = self.process()
-                    val_stack.push((item,EXP))   
-                    need_store = True                
+                    val_stack.push((item,EXP))                  
             elif c == '}':
                 if not is_first:
                     need_store = True
@@ -553,22 +618,17 @@ class PyLuaTblParser:
                 else : #'{}'not match
                     raise Exception('Table format wrong')
             elif c == '=' :
-                if is_array:
-                    is_array = False
-                    for v in array:
-                        if v != None:
-                            map[map_index] = v
-                            map_index += 1
                 op_stack.push('=')
             elif (c == ',' or c == ';') :
                 need_store = True
+                is_separate = True
             elif (c == '"' or c == "'"):    # Get String
                 v = get_str(self.tableString,self.index)
                 val_stack.push((v[0],EXP))
                 self.index = v[1]
                 continue
             elif c == '-' and self.tableString[self.index+1] == '-':
-                self.index = remove_comment(self.tableString,self.index)
+                self.index = self.remove_comment(self.tableString,self.index)
                 continue
             elif c.isdigit() or c in '-.':  # Get Number
                 v = get_number(self.tableString,self.index)
@@ -585,9 +645,210 @@ class PyLuaTblParser:
                 val_stack.push((v[0],v[1]))
                 self.index = v[2]
                 continue
-            else : # Skip in (' ','\n','\r','\t')
+            elif c in (' ','\n','\r','\t') : # Skip in (' ','\n','\r','\t')
                 pass
+            else:
+                raise Exception('Table format wrong')
             self.index += 1
 
+    def test(self,value):
+        while self.index < self.length:
+            c = value[self.index]
+            self.index += 1
+            if c == ' ':
+                self.test(value)
+            elif c == '!':
+                self.test(value)
+            elif c == '"':
+                self.test(value)
+            elif c == '#':
+                self.test(value)
+            elif c == '$':
+                self.test(value)
+            elif c == '%':
+                self.test(value)
+            elif c == '&':
+                self.test(value)
+            elif c == '\'':
+                self.test(value)
+            elif c == '(':
+                self.test(value)
+            elif c == ')':
+                self.test(value)
+            elif c == '*':
+                self.test(value)
+            elif c == '+':
+                self.test(value)
+            elif c == ',':
+                self.test(value)
+            elif c == '-':
+                self.test(value)
+            elif c == '.':
+                self.test(value)
+            elif c == '/':
+                self.test(value)
+            elif c == '0':
+                self.test(value)
+            elif c == '1':
+                self.test(value)
+            elif c == '2':
+                self.test(value)
+            elif c == '3':
+                self.test(value)
+            elif c == '4':
+                self.test(value)
+            elif c == '5':
+                self.test(value)
+            elif c == '6':
+                self.test(value)
+            elif c == '7':
+                self.test(value)
+            elif c == '8':
+                self.test(value)
+            elif c == '9':
+                self.test(value)
+            elif c == ':':
+                self.test(value)
+            elif c == ';':
+                self.test(value)
+            elif c == '<':
+                self.test(value)
+            elif c == '=':
+                self.test(value)
+            elif c == '>':
+                self.test(value)
+            elif c == '?':
+                self.test(value)
+            
+            elif c == '@':
+                self.test(value)
+            elif c == 'A':
+                self.test(value)
+            elif c == 'B':
+                self.test(value)
+            elif c == 'C':
+                self.test(value)
+            elif c == 'D':
+                self.test(value)
+            elif c == 'E':
+                self.test(value)
+            elif c == 'F':
+                self.test(value)
+            elif c == 'G':
+                self.test(value)
+            elif c == 'H':
+                self.test(value)
+            elif c == 'I':
+                self.test(value)
+            elif c == 'J':
+                self.test(value)
+            elif c == 'K':
+                self.test(value)
+            elif c == 'L':
+                self.test(value)
+            elif c == 'M':
+                self.test(value)
+            elif c == 'N':
+                self.test(value)
+            elif c == 'O':
+                self.test(value)
+            elif c == 'P':
+                self.test(value)
+            elif c == 'Q':
+                self.test(value)
+            elif c == 'R':
+                self.test(value)
+            elif c == 'S':
+                self.test(value)
+            elif c == 'T':
+                self.test(value)
+            elif c == 'U':
+                self.test(value)
+            elif c == 'V':
+                self.test(value)
+            elif c == 'W':
+                self.test(value)
+            elif c == 'X':
+                self.test(value)
+            elif c == 'Y':
+                self.test(value)
+            elif c == 'Z':
+                self.test(value)
+            elif c == '[':
+                self.test(value)
+            elif c == '/':
+                self.test(value)
+            elif c == ']':
+                self.test(value)
+            elif c == '^':
+                self.test(value)
+            elif c == '_':
+                self.test(value)
+
+            elif c == '`':
+                self.test(value)
+            elif c == 'a':
+                self.test(value)
+            elif c == 'b':
+                self.test(value)
+            elif c == 'c':
+                self.test(value)
+            elif c == 'd':
+                self.test(value)
+            elif c == 'e':
+                self.test(value)
+            elif c == 'f':
+                self.test(value)
+            elif c == 'g':
+                self.test(value)
+            elif c == 'h':
+                self.test(value)
+            elif c == 'i':
+                self.test(value)
+            elif c == 'j':
+                self.test(value)
+            elif c == 'k':
+                self.test(value)
+            elif c == 'l':
+                self.test(value)
+            elif c == 'm':
+                self.test(value)
+            elif c == 'n':
+                self.test(value)
+            elif c == 'o':
+                self.test(value)
+            elif c == 'p':
+                self.test(value)
+            elif c == 'q':
+                self.test(value)
+            elif c == 'r':
+                self.test(value)
+            elif c == 's':
+                self.test(value)
+            elif c == 't':
+                self.test(value)
+            elif c == 'u':
+                self.test(value)
+            elif c == 'v':
+                self.test(value)
+            elif c == 'w':
+                self.test(value)
+            elif c == 'x':
+                self.test(value)
+            elif c == 'y':
+                self.test(value)
+            elif c == 'z':
+                self.test(value)
+            elif c == '{':
+                self.test(value)
+            elif c == '|':
+                self.test(value)
+            elif c == '}':
+                self.test(value)
+            elif c == '~':
+                self.test(value)
+            else:
+                self.test(value)
+        raise Exception("exception")
     
 

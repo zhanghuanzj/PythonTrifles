@@ -23,6 +23,9 @@
     <EnableUnmanagedDebugging>false</EnableUnmanagedDebugging>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="analysis.py">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Include="PyLuaTblParser.py" />
     <Compile Include="Test.py">
       <SubType>Code</SubType>

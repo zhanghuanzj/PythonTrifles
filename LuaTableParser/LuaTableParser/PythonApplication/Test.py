@@ -3,47 +3,39 @@ from PyLuaTblParser import PyLuaTblParser
 def test(s):
     pl = PyLuaTblParser()
     pl.load(s)
-    #print pl.table["root"][7].has_key('\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'),'0000000000000000000000000000000000000000000'
+    
     print '----------------------------'
     print 'sstr:',s
     print 'self:',pl.table
     print 'dum1:',pl.dump()
     ssss = pl.dump()
     pl.load(ssss)
-    #print pl.table["root"][7].has_key('\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'),'1111111111111111111111111111111111111111111'
+    
     print 'nnew:',pl.table
     print 'dum2:',pl.dump()
     pl.dumpLuaTable('test.txt')
     print 'dump to file'
-    #f = open('test.txt','w')
-    #f.write(s)
-    #f.close()
     pl.loadLuaTable('test.txt')
-    #print pl.table["root"][7].has_key('\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'),'22222222222222222222222222222222222222222222'
+   
     print 'load from file'
     print 'fnew:',pl.table
     print 'dum3:',pl.dump()
     d1 = pl.dumpDict()
     p2 = PyLuaTblParser()
     p2.loadDict(d1)
-    #print pl.table["root"][7].has_key('\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'),'33333333333333333333333333333333333333333333'
+   
     p2.dumpLuaTable("test.txt")
     print "dum4:",p2.dump()
     p2.loadLuaTable("test.txt")
     print "dict:",p2.dumpDict()
 
 pl = PyLuaTblParser()
-#pl.loadLuaTable('test.txt')
-#print 'load from file'
-#print 'fnew:',pl.table
-#print 'dum3:',pl.dump()
 
-#s = '\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?\255'
-#print s
-#test(r'''{
-#['\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?\255']=4}
-#''')
-pre = False
+
+test(r'''{
+['\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?\255']=4}
+''')
+pre = True
 if pre:
     test ('''root = {
 	"T",
@@ -57,92 +49,7 @@ if pre:
     jack = 4,
     "jj",
 }''')
-    test(r'''
-    {
 
-    root = {
-
-	    "Test Pattern String",
-
-	    -- {"object with 1 member" = {"array with 1 element",},},
-
-	    {["object with 1 member"] = {"array with 1 element",},},
-
-	    {},
-
-	    [99] = -42,
-
-	    [98] = {{}},
-
-	    [97] = {{},{}},
-
-	    [96] = {{}, 1, 2, nil},
-
-	    [95] = {1, 2, {["1"] = 1}},
-
-	    [94] = { {["1"]=1, ["2"]=2}, {1, ["2"]=2}, ["3"] = 3 },
-
-	    true,
-
-	    false,
-
-	    nil,
-
-	    {
-
-		    ["integer"]= 1234567890,
-
-		    real=-9876.543210,
-
-		    e= 0.123456789e-12,
-
-		    E= 1.234567890E+34,
-
-		    zero = 0,
-
-		    one = 1,
-
-		    space = " ",
-
-		    quote = "\"",
-
-		    backslash = "\\",
-
-		    controls = "\b\f\n\r\t",
-
-		    slash = "/ & \\",
-
-		    alpha= "abcdefghijklmnopqrstuvwyz",
-
-		    ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWYZ",
-
-		    digit = "0123456789",
-
-		    special = "`1~!@#$%^&*()_+-={':[,]}|;.</>?",
-
-		    hex = "0x01230x45670x89AB0xCDEF0xabcd0xef4A",
-
-		    ["true"] = true,
-
-		    ["false"] = false,
-
-		    ["nil"] = nil,
-
-		    array = {nil, nil,},
-
-		    object = {  },
-
-		    address = "50 St. James Street",
-
-		    url = "http://www.JSON.org/",
-
-		    comment = "// /* <!-- --",
-
-		    ["# -- --> */"] = 4
-	    }
-        }
-    }
-    ''')
     test('''{{3},}''')
     test(r'''
 {"-- Copyright (c) 2012 Robert Forsman\n-- This work is made available under the terms of the Creative Commons Attribution-NonCommercial-ShareAlike 3.0 license, http://creativecommons.org/licenses/by-nc-sa/3.0/\n-- ACmenu=raids/Throne of Thunder/Jin'rokh\n\n\nfunction GSL(sid)\n    local a={ EJ_GetSectionInfo(sid) }\n    return a[9]\nend\n\nlocal d = 1;\nlocal c=\"SAY\"\nif \"raid\" == ({IsInInstance()})[2] then\n    d = GetRaidDifficultyID()\n    c=\"RAID\"\nend\nif (IsInGroup(LE_PARTY_CATEGORY_INSTANCE)) then\n    c=\"INSTANCE_CHAT\"\nend\n\nEJ_SetDifficulty(d)\n\n\nlocal Implosion = GSL(7744)\nlocal StaticWound = GSL(7739)\nlocal FocusedLightning = GSL(7741)\nlocal ConductiveWater = GSL(7822)\nlocal LightningFissure = GSL(7743)\nlocal Fluidity = GSL(7735)\nlocal LightningStorm = GSL(7748)\nlocal ElectrifiedWaters = GSL(7737)\n\nSendChatMessage(\"Whenever the boss applies \"..StaticWound..\" to the tank, the other tank should take over immediately, even if they have a few stacks left.\", c);\nSendChatMessage(\"Kite the \"..FocusedLightning..\" to a grate and don't let it explode in \"..ConductiveWater..\".\", c);\nSendChatMessage(\"Under no circumstances let it touch a \"..LightningFissure..\" or the raid will be wiped by \"..Implosion, c);\n\nSendChatMessage(\"Stand in \"..ConductiveWater..\" to get \"..Fluidity..\", but get out when \"..LightningStorm..\" converts it to \"..ElectrifiedWaters..\".\")"}''')
@@ -570,192 +477,31 @@ if pre:
         {["\r\ndkj"] = nil,["\r\ndkj"] = 4}
     ''')
 
+    test(r'''
+     {[ "\\\"\b\f\n" ]=8,}
+    ''')
 
-#def test2(d):
-#    pl = PyLuaTblParser()
-#    print '**************************************************'
-#    pl.loadDict(d) 
-#    print pl.dumpDict()
-#testd = {"a" : "apple", "b" : "banana", "g" : "grape", "o" : "orange",0x34:45,"jack":None,True:5, 4: [2,3,4,None],6:{"HA" : None}}
-#test2(testd)
+lua_table = PyLuaTblParser()
+lua_table.load('{[1]=4,[2]="jack"}')
+print lua_table[2]
+lua_table[2] = "new jack"
+print lua_table[2]
+lua_table[3] = "new tom"
+print lua_table[3]
+lua_table[3.4e5] = "new kitty"
+print lua_table[3.4e5]
+lua_table[0xff] = "new Kim"
+print lua_table[0xff]
+lua_table["haha"] = "mike"
+print lua_table["haha"]
+#lua_table[True] = "new Kim"
+#print lua_table[True]
 
-
-#test(r'''{
-#root = {
-#    "Test Pattern String",
-#    -- {"object with 1 member" = {"array with 1 element",},},
-#    {["object with 1 member"] = {"array with 1 element",},},
-#    {},
-#    [99] = -42,
-#    [98] = {{}},
-#    [97] = {{},{}},
-#    [96] = {{}, 1, 2, nil},
-#    [95] = {1, 2, {["1"] = 1}},
-#    [94] = { {["1"]=1, ["2"]=2}, {1, ["2"]=2}, ["3"] = 3 },
-#    true,
-#    false,
-#    nil,
-#    {
-#	    ["integer"]= 1234567890,
-#	    real=-9876.543210,
-#	    e= 0.123456789e-12,
-#	    E= 1.234567890E+34,
-#	    zero = 0,
-#	    one = 1,
-#	    space = " ",
-#	    quote = "\"",
-#	    backslash = "\\",
-#	    controls = "\b\f\n\r\t",
-#	    slash = "/ & \\",
-#	    alpha= "abcdefghijklmnopqrstuvwyz",
-#	    ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWYZ",
-#	    digit = "0123456789",
-#	    special = "`1~!@#$%^&*()_+-={':[,]}|;.</>?",
-#	    hex = "0x01230x45670x89AB0xCDEF0xabcd0xef4A",
-#	    ["true"] = true,
-#	    ["false"] = false,
-#	    ["nil"] = nil,
-#	    array = {nil, nil,},
-#	    object = {  },
-#	    address = "50 St. James Street",
-#	    url = "http://www.JSON.org/",
-#	    comment = "// /* <!-- --",
-#	    ["# -- --> */"] = " ",
-#		[" s p a c e d " ] = {1,2 , 3
-#					,
-#			4 , 5        ,          6           ,7        },
-#		--[[[][][]  Test multi-line comments
-#			compact = {1,2,3,4,5,6,7},
-#	- -[luatext = "{\"object with 1 member\" = {\"array with 1 element\"}}",
-#		quotes = "&#34; (0x0022) %22 0x22 034 &#x22;",
-#		["\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?"]
-#		= "A key can be any string"]]
-#	--         ]]
-#		compact = {1,2,3,4,5,6,7},
-#		luatext = "{\"object with 1 member\" = {\"array with 1 element\"}}",
-#		quotes = "&#34; (0x0022) %22 0x22 034 &#x22;",
-#		["\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?"]
-#		= "A key can be any string"
-#	},
-#	0.5 ,31415926535897932384626433832795028841971693993751058209749445923.
-#	,
-#	3.1415926535897932384626433832795028841971693993751058209749445923
-#	,
-#	1066
-#	,"rosebud"
-#}}'''
-#)
-
-
-#test(r'''{
-#["\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?"]= "A key can be any string"
-#}''')
-
-#g = r'''
-#\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?
-#'''
-#print g.find('"')
-#print g.find("'")
-#print g.find('\\"')
-#print g.find("\\'")
-
-#h = '''
-#\\\"\x08\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?
-#'''
-#if h == '''\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?''' :
-#    print "jflkad"
-
-#ddd = {
-#	'root': {
-#		96: [[], 1, 2, None], 
-#		1: 'Test Pattern String', 
-#		2: {
-#			'object with 1 member': ['array with 1 element']
-#			}, 
-#		99: -42, 
-#		4: True, 
-#		5: False, 97: [[], []],
-#		8: 0.5, 
-#		9: 3.141592653589793e+64, 
-#		10: 3.141592653589793, 
-#		7: {
-#			'comment': '// /*<!-- --', 
-#			'false': False, 
-#			'backslash': '\\', 
-#			'one': 1, 
-#			'quotes': 
-#			'&#34; (0x0022) %22 0x22 034 &#x22;', 'zero': 0, 'integer': 1234567890, 'array': [None, None],
-#			'# -- --> */': ' ', 
-#			'special': "`1~!@#$%^&*()_+-={':[,]}|;.</>?", 
-#			'compact': [1, 2, 3, 4, 5, 6, 7], 
-#			'space': ' ', 
-#			'hex': '0x01230x45670x89AB0xCDEF0xabcd0xef4A',
-# 			'controls': '\x08\x0c\n\r\t', 
-# 			'slash': '/ & \\', 
-# 			'real': -9876.54321, 
-# 			'digit':'0123456789', 
-# 			'E': 1.23456789e+34, 
-# 			'quote': '"', 
-# 			'object': [], 
-# 			'address': '50 St. James Street', 'alpha': 'abcdefghijklmnopqrstuvwyz', '\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?': 'A key can be any string', 
-# 			'true': True, 
-# 			'luatext':'{"object with 1 member" = {"array with 1 element"}}', 
-#			'e': 1.23456789e-13, 
-#			'url': 'http://www.JSON.org/', 
-#			' s p a c e d ': [1, 2, 3, 4, 5, 6, 7], 
-#			'ALPHA': 'ABCDEFGHIJKLMNOPQRSTUVWYZ'
-# 		}, 
-#		12: 'rosebud', 
-#		98: [[]], 
-#		11: 1066, 
-#		3: [], 
-#		94: {
-#			1: {'1': 1, '2': 2}, 
-#			2: {1: 1, '2': 2}, 
-#			'3': 3
-#		}, 
-#		95: [1, 2, {'1': 1}]
-#	}
-#}
-
-#print ddd.has_key("root")
-#for k in ddd["root"][7].keys():
-#    print k
-#print ddd["root"][7].has_key('\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?')
-
-#t = '\\\a'.replace('\\','\\\\')
-#print t
-
-#f = '\444'
-#print f
-
-#ff = '\"'
-#print ff
-#ft = ff.replace('\\','\\\\')
-#print repr(ft)
-
-#y = r"\\\"\b\f\n\r\t`1~!@#$%^&*()_+-=[]{}|;:',./<>?"
-#for x in y:
-#    print x
-
-#c = '''\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'''
-#print c == str(y)
-#print c
-#print c.replace('\\','\\\\').replace('\b','\\b').replace('\f','\\f')
-
-#test(r'''
-#{["\\\"\b\f\n"] = 8}
-#''')
-
-test(r'''
- {[ "\\\"\b\f\n" ]=8,}
-''')
-
-#test(r'''{[ "'\
-#' "]=8,}
-#''')
-
-c = r"\\\"\b\f\n"
+print lua_table.table
+update_d = {5 : "5","haha":"new Mike","new_key":"value"}
+print update_d
+lua_table.update(update_d)
+print lua_table.table
 
 
 

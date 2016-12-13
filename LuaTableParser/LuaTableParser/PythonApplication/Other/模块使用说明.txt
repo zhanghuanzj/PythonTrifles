@@ -11,13 +11,6 @@
   pl.dumpLuaTable(filePath) #将类中内容一lua table格式存入文件
   pl.loadDict(d) #将dict导入并转换成内部格式
   pl.dumpDict() #返回dict
-
-unecessary dict key: 6
-(type=dict, key or index=root)
-
-Traceback (most recent call last):
-  File "check_homework.py", line 65
-  File "PyLuaTblParser.py", line 40
-  File "PyLuaTblParser.py", line 192
-  File "PyLuaTblParser.py", line 192
-  File "PyLuaTblParser.py", line 174
+  pl[key] #访问相应的值，会进行key的存在性检查，不存在则抛异常
+  pl[key] #对相应的key的值进行修改，key仅支持数字和字符串
+  pl.update(dict) #对内部table进行更新，类似于dict.update()

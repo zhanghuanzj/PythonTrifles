@@ -1,0 +1,21 @@
+1.nil作为value虽然不存储，但还是会占用key
+{
+	true,
+	false,
+	nil,
+	"jack"
+}
+此时"jack"的key为4，而不是3
+unecessary dict key: 6
+(type=dict, key or index=root)
+
+2.load没有进行转义，dump时也需要对转义字符进行特殊存储（'\a'-->'\\a'）
+dict key not find: u'\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'
+(type=dict, key or index=root)
+(type=dict, key or index=7)
+
+3.注意注释
+
+4.块字符串
+
+5.十六进制

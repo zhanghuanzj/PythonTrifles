@@ -96,10 +96,16 @@ class PyLuaTblParser:
                 for k,v in value.items():
                     if type(k) in (str,int,float):
                         if isinstance(k,str):
-                            if (k.find("'") != -1 ) and (k.find('"') != -1) :
-                                count = bracket_count(k)
-                                k = '['+'='*count+'[' + k + ']'+'='*count+']'
-                            elif k.find("'") != -1:
+                            #if (k.find("'") != -1 ) and (k.find('"') != -1) :
+                            #    count = bracket_count(k)
+                            #    k = '['+'='*count+'[' + k + ']'+'='*count+']'
+                            #elif k.find("'") != -1 :
+                            #    k = '"' + k + '"'
+                            #else:
+                            #    k = "'" + k + "'"
+                            #count = bracket_count(k)
+                            #k = '['+'='*count+'[' + k + ']'+'='*count+']'
+                            if k.find("'") != -1 :
                                 k = '"' + k + '"'
                             else:
                                 k = "'" + k + "'"
@@ -116,17 +122,24 @@ class PyLuaTblParser:
                 return 'nil'
             else:
                 if isinstance(value,str):
-                    if (value.find("'") != -1) and (value.find('"') != -1 ) :
-                         count = bracket_count(value)
-                         value = '['+'='*count+'[' + value + ']'+'='*count+']'
-                    elif value.find("'") != -1 :
+                    #if (value.find("'") != -1) and (value.find('"') != -1 ) :
+                    #     count = bracket_count(value)
+                    #     value = '['+'='*count+'[' + value + ']'+'='*count+']'
+                    #elif value.find("'") != -1 :
+                    #    value = '"' + value + '"'
+                    #else:
+                    #    value = "'" + value + "'"
+                    #count = bracket_count(value)
+                    #value = '['+'='*count+'[' + value + ']'+'='*count+']'
+                    if value.find("'") != -1 :
                         value = '"' + value + '"'
                     else:
                         value = "'" + value + "'"
                 return value
             result += '}'
             return result
-        return dump_aux(self.table)
+        dump_str = dump_aux(self.table)
+        return dump_str.replace('\\\\','\\')
     
     def loadLuaTable(self, f):
         try :
@@ -292,7 +305,26 @@ class PyLuaTblParser:
                         continue
                 elif c == '\\' and not has_esc: #esc
                     has_esc = True
-                else :
+                    continue
+                elif has_esc :
+                    if c == 'b':
+                        c = '\b'
+                    elif c == 'f':
+                        c = '\f'
+                    elif c == 'n':
+                        c = '\n'
+                    elif c == 'r':
+                        c = '\r'
+                    elif c == 't':
+                        c = '\t'
+                    elif c == '\\':
+                        c = '\\'
+                    elif c == '\"':
+                        c == '\"'
+                    elif c == '\'':
+                        c == '\''
+                    else:
+                        result += '\\'
                     has_esc = False
                 result += c
         # Name ,Bool and nil analysis
@@ -495,6 +527,9 @@ class PyLuaTblParser:
             if self.index >= self.length:
                 print self.tableString[:self.index]
                 raise Exception('Table format wrong')
+            if self.index == 310:
+                hahah = 4
+                pass
             if need_store:
                 if is_separate :
                     if val_stack.is_empty():

@@ -3,9 +3,9 @@ lines = f.readlines()
 of = open("HAHA2.txt",'w')
 for line in lines:
     count = int(line)-1
-    if count>=724 :
+    if count>=727 :
         count -= 1
-    if count>=789 :
+    if count>=792 :
         count -= 1
     c = (count - 662)/2
     if c == 0:

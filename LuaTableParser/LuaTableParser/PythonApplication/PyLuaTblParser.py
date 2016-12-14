@@ -297,17 +297,7 @@ class PyLuaTblParser:
                     elif flag and c in(' ','\n','\r','\t'):
                         pass
                     else:
-                        if result == '-':
-                            if c.isalpha():
-                                raise Exception('Table format wrong -- Number analysis ')
-                            elif c == '-':
-                                raise Exception('Table format wrong -- Number analysis ')
-                            elif c in '~!@#$%^%&*()_+\":':
-                                raise Exception('Table format wrong -- Number analysis ')
-                            else:
-                                raise Exception('Table format wrong -- Number analysis ')
-                        else:
-                            raise Exception('Table format wrong -- Number analysis ')
+                        raise Exception('Table format wrong -- Number analysis ')
                 elif state == ZERO:
                     if c in 'xX':
                         state = HEX

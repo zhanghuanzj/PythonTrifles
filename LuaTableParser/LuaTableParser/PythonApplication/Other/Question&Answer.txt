@@ -19,3 +19,7 @@ dict key not find: u'\\"\x08\x0c\n\r\t`1~!@#$%^&*()_+-=[]{}|;:\',./<>?'
 4.块字符串
 
 5.十六进制
+
+6.Traceback (most recent call last):
+ 	File "check_homework.py", line 54
+包含中文编码，要加字符编码信息

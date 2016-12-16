@@ -1,6 +1,31 @@
 import socket
 import select
+import threading
+import sqlite3
 
+#database
+conn = sqlite3.connect('test.db')
+cursor = conn.cursor()
+cursor.execute('create table user(name varchar(20) primary key, password varchar(20))')
+cursor.execute('insert into user (name,password) values (\'zhanghuanzj\',\'12345678\')')
+cursor.close()
+conn.commit()
+conn.close()
+
+def client_handle(c_socket):
+    try:
+        message = c_socket.recv(1024)
+        disconnected = not message
+    except socket.error:
+        disconnected = True
+    if disconnected:
+        print c_socket.getpeername(),' disconnected'
+        inputs.remove(c_socket)
+        c_socket.close()
+    else:
+        print message
+
+clients = {}   
 # Address
 HOST = socket.gethostname()
 PORT = 7777
@@ -19,15 +44,9 @@ while True:
             connect_socket,addr = listen_socket.accept()
             print 'Connected from :', addr
             inputs.append(connect_socket)
+            connect_socket.send('Login or Register?')
         else:
-            try:
-                message = r.recv(1024)
-                disconnected = not message
-            except socket.error:
-                disconnected = True
-            if disconnected:
-                print r.getpeername(),' disconnected'
-                inputs.remove(r)
-            else:
-                print message
+            t = threading.Thread(target=client_handle,args=(r,))
+            t.start()
 listen_socket.close()
+

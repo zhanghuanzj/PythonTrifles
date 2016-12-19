@@ -8,6 +8,7 @@ class UserInformation:
         self.login_time = time.time()
         self.total_time = 0
         self.room_id = None
+        self.socket = None
 
 class ChatRoomServer:
     def __init__(self):
@@ -37,8 +38,7 @@ class ChatRoomServer:
             elif c == '':
                 message = self.clients[c_socket]+' offline'
                 raise Exception(message)
-        print 'result:',result
-        return result.strip()
+        return result
 
     #Main loop
     def process(self):
@@ -58,31 +58,35 @@ class ChatRoomServer:
                     except Exception:
                         disconnected = True
                     if disconnected:
-                        self.offline_handle(r)
+                        self.user_offline(r)
                     else:
                         print '--------------service----------------'
                         print message
-                        self.client_handle(r,message)
+                        self.command_handle(r,message)
         self.listen_socket.close()
     
-    # command handle
-    def client_handle(self,c_socket,message):
+    #need handle................................
+    def command_handle(self,c_socket,message):
+        command = message.strip()
         if c_socket not in self.clients:
-            self.user_handle(c_socket,message)
+            self.user_handle(c_socket,command)
         else:
-            if message == 'quit':
+            #[command]
+            if command == 'quitroom':
                 self.quit_room(c_socket)
             else:
-                index = message.find(' ')
-                command = message[:index].lower()
-                value = message[index+1:]
-                #print 'com:',command
-                #print 'val:',value
-                if command == 'createroom':
-                    self.create_room(c_socket,value)
-                elif command == 'enterroom':
-                    self.enter_room(c_socket,value)
-
+                #[command]<user>(value)
+                if command.startswith('chatto'):
+                    pass
+                else:
+                    if command.find(' ') == -1:
+                        raise Exception('Command error')
+                    if command.startswith('createroom'):
+                        self.create_room(c_socket,command[len('createroom'):])
+                    elif command.startswith('enterroom'):
+                        self.enter_room(c_socket,value)
+                    elif command.startswith('chatall'):
+                        self.chatall(c_socket,value)
 
     def create_room(self,c_socket,roomid):
         if self.rooms.has_key(roomid):
@@ -117,6 +121,28 @@ class ChatRoomServer:
                 del self.rooms[roomid]
             self.print_status()
 
+    def chatall(self,c_socket,message):
+        username = self.clients[c_socket]
+        message = username + ':' + message +'\r\n'
+        for user_socket in self.clients.keys():
+            if user_socket != c_socket:
+                user_socket.sendall(message)
+
+    def chatroom(self,c_socket,message):
+        username = self.clients[c_socket]
+        message = username + ':' + message +'\r\n'
+        if self.users[username].room_id == None:
+            c_socket.sendall('You are not in the room!\r\n')
+        else:
+            for user in self.rooms[self.users[username].room_id]:
+                if user != username:
+                    self.users[user].socket.sendall(message)
+
+    def chatto(self,c_socket,user,message):
+        username = self.clients[c_socket]
+        message = username + ':' + message +'\r\n'
+        self.users[user].socket.sendall(message)
+
     #Login ro Register
     def user_handle(self,c_socket,command):
         is_login_success = False
@@ -131,7 +157,7 @@ class ChatRoomServer:
                 except Exception:
                     disconnected = True
                 if disconnected:
-                    self.offline_handle(c_socket)
+                    self.user_offline(c_socket)
                 else:
                     print username,password
                     if not self.user_login(username,password):
@@ -142,6 +168,7 @@ class ChatRoomServer:
                         self.clients[c_socket] = username
                         self.users[username] = UserInformation()
                         self.users[username].total_time = self.get_total_time(username)
+                        self.users[username].socket = c_socket
                         break
         elif command in ('Register','register'):
             self.user_register(c_socket)
@@ -149,22 +176,6 @@ class ChatRoomServer:
             c_socket.sendall('Command Error!\r\n')
         return is_login_success  
     
-    def get_total_time(self,username):
-        query = '''SELECT onlineTime FROM user WHERE name = '%s' ''' % (username,)
-        total_time = 0
-        item = self.cursor.execute(query)
-        result = item.fetchone()
-        if result != None:
-            total_time = result[0]
-        return total_time
-
-    def is_exist(self,query):
-        exist = False
-        #Database
-        item = self.cursor.execute(query)
-        if item.fetchone() != None:
-            exist = True
-        return exist
 
     def user_login(self,username,password):
         query = '''SELECT * FROM user WHERE name = '%s' AND password = '%s' ''' % (username,password)
@@ -182,7 +193,7 @@ class ChatRoomServer:
             except Exception:
                 disconnected = True
             if disconnected:
-                self.offline_handle(c_socket)
+                self.user_offline(c_socket)
             else:
                 query = '''SELECT * FROM user WHERE name = '%s' ''' % (username,)
                 if self.is_exist(query):
@@ -195,19 +206,63 @@ class ChatRoomServer:
                     c_socket.sendall('Register success,please login!\r\n')
                     break
 
-    def offline_handle(self,c_socket):
+    def user_offline(self,c_socket):
+        #inputs remove
         self.inputs.remove(c_socket)
         if self.clients.has_key(c_socket):
             print '***********************************************\n'
             print self.clients[c_socket],' offline'
             print '***********************************************\n'
             #online time update
-            information = self.users[self.clients[c_socket]]
+            username = self.clients[c_socket]
+            information = self.users[username]
             query = ''' UPDATE user SET onlineTime = %d WHERE name = '%s' ''' % (time.time()-information.login_time+information.total_time,self.clients[c_socket] )
             self.store(query)
+            #information remove
+            if information.room_id != None:
+                self.quit_room(c_socket)
             del self.clients[c_socket]
+            del self.users[username]
+            
         c_socket.close()
     
+    def get_command(self,message,number):
+        strs = (message.strip()+' ').split(' ')
+        if len(strs)<number:
+            raise Exception('command error')
+        result = []
+        value = ''
+        for s in strs:
+            #command 
+            if s != '' and len(result)!=number-1:
+                result.append(s)
+            elif len(result) == number-1:
+                value += s
+        result.append(value) 
+        if number == 2:
+            if result[0] not in ('chatall','chatroom','createroom','enterroom'):
+                raise Exception('command error')
+        elif number == 3:
+            if result[0] != 'chatto':
+                raise Exception('command error')
+            
+
+    def get_total_time(self,username):
+        query = '''SELECT onlineTime FROM user WHERE name = '%s' ''' % (username,)
+        total_time = 0
+        item = self.cursor.execute(query)
+        result = item.fetchone()
+        if result != None:
+            total_time = result[0]
+        return total_time
+
+    def is_exist(self,query):
+        exist = False
+        #Database
+        item = self.cursor.execute(query)
+        if item.fetchone() != None:
+            exist = True
+        return exist
     def store(self,query):
         self.cursor.execute(query)
         self.conn.commit()
@@ -232,8 +287,8 @@ class ChatRoomServer:
         conn.commit()
         conn.close()
 
-
 server = ChatRoomServer()
+server.get_command('  chatall   jfdlj  ')
 try:
     server.process()
 finally:

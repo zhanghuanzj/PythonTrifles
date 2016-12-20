@@ -4,6 +4,31 @@ import sqlite3
 import time
 import random
 
+CONNECTED,LOGIN,REGISTER,ENTER,ENROLL,ONLINE = 0,1,2,3,4,5
+
+class Stack:
+    def __init__(self):
+        self.items = []
+
+    def is_empty(self):
+        return len(self.items)==0
+
+    def push(self,item):
+        self.items.append(item)
+    
+    def pop(self):
+        if not self.is_empty():
+            return self.items.pop()
+
+    def peek(self):
+        if self.is_empty():
+            raise Exception('Expression error')
+        else:
+            return self.items[len(self.items)-1]
+
+    def size(self):
+        return len(self.items)
+
 class UserInformation:
     def __init__(self):
         self.login_time = time.time()
@@ -18,11 +43,18 @@ class GameInformation:
         self.value = None
         self.time = None
 
+class ConnectionInformation:
+    def __init__(self):
+        self.state = CONNECTED
+        self.username = None
+        self.password = None
+
 class ChatRoomServer:
     def __init__(self):
         # Database
         self.conn = sqlite3.connect('test.db')
         self.cursor = self.conn.cursor()
+        self.gaming = False
         # Address
         HOST = socket.gethostname()
         PORT = 7777
@@ -37,56 +69,60 @@ class ChatRoomServer:
         self.rooms = {}                     #<roomid>:[members]
         self.games = {}                     #game
 
-    def readline(self,c_socket):
-        result = ''
-        while True:
-            c = c_socket.recv(1024)
-            result += c
-            if c.endswith('\n'):
-                break;
-            elif c == '':
-                message = self.clients[c_socket]+' offline'
-                raise Exception(message)
-        return result.strip()
-
     #Main loop
     def process(self):
         while True:
             print 'Wating for request...'
             current_time = time.localtime(time.time())
-            if current_time[4] in (0,30,57,56):
-                pass
-            rs,ws,es = select.select(self.inputs,[],[])
-            for r in rs:
-                if r is self.listen_socket:     #listen socket
+            if (not self.gaming) and current_time[4] in (9,11,30,57,56):
+                self.game_start()
+            rs,ws,es = select.select(self.inputs,[],[],2)
+            for r_socket in rs:
+                if r_socket is self.listen_socket:     #listen socket
                     connect_socket,addr = self.listen_socket.accept()
                     print 'Connected from :', addr
                     self.inputs.append(connect_socket)
+                    self.clients[connect_socket] = ConnectionInformation()
                     connect_socket.sendall('Login or Register?\r\n')
                 else:                           #client socket
                     try:
-                        message = self.readline(r)
+                        message = self.readline(r_socket)
                         disconnected = False
                     except Exception:
                         disconnected = True
                     if disconnected:
-                        self.user_offline(r)
+                        self.user_offline(r_socket)
                     else:
                         print '--------------service----------------'
                         print message
-                        self.command_handle(r,message)
+                        self.command_handle(r_socket,message)
         self.listen_socket.close()
     
-    #need handle................................
     def command_handle(self,c_socket,message):
-        if c_socket not in self.clients:
+        if self.clients[c_socket].state == CONNECTED:
             if message == 'login':
-                self.user_login(c_socket)
+                self.clients[c_socket].state = LOGIN
+                c_socket.sendall('Please entry the username:\r\n')
             elif message == 'register':
-                self.user_register(c_socket)
+                self.clients[c_socket].state = REGISTER
+                c_socket.sendall('Please entry the username:\r\n')
             else:
-                c_socket.sendall('Command error!\r\n') 
-        else:
+                c_socket.sendall('Command error!\r\n')
+        elif self.clients[c_socket].state == LOGIN:
+            self.clients[c_socket].username = message
+            self.clients[c_socket].state = ENTER
+            c_socket.sendall('Please entry the password:\r\n')
+        elif self.clients[c_socket].state == ENTER:
+            self.clients[c_socket].password = message
+            self.user_login(c_socket)
+        elif self.clients[c_socket].state == REGISTER:
+            self.clients[c_socket].username = message
+            self.clients[c_socket].state = ENROLL
+            c_socket.sendall('Please entry the password:\r\n')
+        elif self.clients[c_socket].state == ENROLL:
+            self.clients[c_socket].password = message
+            self.user_register(c_socket)
+        elif self.clients[c_socket].state == ONLINE:
             #[command]
             if message == 'quitroom':
                 self.quit_room(c_socket)
@@ -101,6 +137,7 @@ class ChatRoomServer:
                     else:
                         result = self.get_command(message,2)
                         command,value = result[0],result[1]
+                        print "+++++:",result
                         if command == 'createroom':
                             self.create_room(c_socket,value)
                         elif command == 'enterroom':
@@ -110,14 +147,14 @@ class ChatRoomServer:
                         elif command == 'chatroom':
                             self.chatroom(c_socket,message)
                 except Exception:
-                    print 'exception'
                     c_socket.sendall('Command error!\r\n') 
 
+    
     def create_room(self,c_socket,roomid):
         if self.rooms.has_key(roomid):
             c_socket.sendall('Room %s is exist!\r\n' % (roomid,))
         else:
-            username = self.clients[c_socket]
+            username = self.clients[c_socket].username
             self.rooms[roomid] = set([username])
             self.users[username].room_id = roomid
             c_socket.sendall('Room %s create success!\r\n' % (roomid,))
@@ -127,14 +164,14 @@ class ChatRoomServer:
         if not self.rooms.has_key(roomid):
             c_socket.sendall('Room %s is not exist!\r\n' %(roomid,))
         else:
-            username = self.clients[c_socket]
+            username = self.clients[c_socket].username
             self.rooms[roomid].add(username)
             self.users[username].room_id = roomid
             c_socket.sendall('Enter the room %s !\r\n' % (roomid,))
             self.print_status()
 
     def quit_room(self,c_socket):
-        username = self.clients[c_socket]
+        username = self.clients[c_socket].username
         if self.users[username].room_id == None:
             c_socket.sendall('You are not in the room!\r\n')
         else:
@@ -144,17 +181,18 @@ class ChatRoomServer:
             c_socket.sendall('Quit the room %s !\r\n' % (roomid,))
             if len(self.rooms[roomid]) == 0:
                 del self.rooms[roomid]
+                del self.games[roomid]
             self.print_status()
 
     def chatall(self,c_socket,message):
-        username = self.clients[c_socket]
+        username = self.clients[c_socket].username
         message = username + ':' + message +'\r\n'
         for user_socket in self.clients.keys():
             if user_socket != c_socket:
                 user_socket.sendall(message)
 
     def chatroom(self,c_socket,message):
-        username = self.clients[c_socket]
+        username = self.clients[c_socket].username
         message = username + ':' + message +'\r\n'
         if self.users[username].room_id == None:
             c_socket.sendall('You are not in the room!\r\n')
@@ -164,7 +202,7 @@ class ChatRoomServer:
                     self.users[user].socket.sendall(message)
     
     def chatto(self,c_socket,user,message):
-        username = self.clients[c_socket]
+        username = self.clients[c_socket].username
         message = username + ':' + message +'\r\n'
         query = '''SELECT * FROM user WHERE name = '%s' ''' % (user,)
         if self.is_exist(query):
@@ -176,88 +214,79 @@ class ChatRoomServer:
             c_socket.sendall('There is no user named %s!\r\n' % (user,))
 
     def user_login(self,c_socket):
-        while True:
-            try:
-                c_socket.sendall('Please entry the username:\r\n')
-                username = self.readline(c_socket)
-                c_socket.sendall('Please entry the password:\r\n')
-                password = self.readline(c_socket)
-                query = '''SELECT * FROM user WHERE name = '%s' AND password = '%s' ''' % (username,password)
-                disconnected = False
-            except Exception:
-                disconnected = True
-            if disconnected:
-                self.user_offline(c_socket)
-                break
-            else:
-                print username,password
-                if not self.is_exist(query):
-                    c_socket.sendall('Login error please try again!\r\n')
-                else:
-                    c_socket.sendall('Login success,welcome to the game lobby!\r\n' )
-                    #user information load
-                    self.clients[c_socket] = username
-                    self.users[username] = UserInformation()
-                    self.users[username].total_time = self.get_total_time(username)
-                    self.users[username].socket = c_socket
-                    break
+        username = self.clients[c_socket].username
+        password = self.clients[c_socket].password
+        query = '''SELECT * FROM user WHERE name = '%s' AND password = '%s' ''' % (username,password)
+        if not self.is_exist(query):
+            self.clients[c_socket].state = LOGIN
+            c_socket.sendall('Login error please try again!\r\n')
+        else:
+            self.clients[c_socket].state = ONLINE
+            c_socket.sendall('Login success,welcome to the game lobby!\r\n' )
+            #user information load
+            self.users[username] = UserInformation()
+            self.users[username].total_time = self.get_total_time(username)
+            self.users[username].socket = c_socket
 
     def user_register(self,c_socket):
-        c_socket.sendall('Please entry your username and password:\r\n')
-        while True:  
-            try:
-                c_socket.sendall('Username:')
-                username = self.readline(c_socket)
-                c_socket.sendall('Password:')
-                password = self.readline(c_socket)
-                disconnected = False
-            except Exception:
-                disconnected = True
-            if disconnected:
-                self.user_offline(c_socket)
-                break
-            else:
-                query = '''SELECT * FROM user WHERE name = '%s' ''' % (username,)
-                if self.is_exist(query):
-                    c_socket.sendall('The username is exist,please entry another one!\r\n')
-                else :
-                    #Database
-                    storage = '''insert into user (name,password,onlineTime) values ('%s','%s',0)''' % (username,password)
-                    self.cursor.execute(storage)
-                    self.conn.commit()
-                    c_socket.sendall('Register success,please login!\r\n')
-                    break
+        username = self.clients[c_socket].username
+        password = self.clients[c_socket].password
+        query = '''SELECT * FROM user WHERE name = '%s' ''' % (username,)
+        if self.is_exist(query):
+            self.clients[c_socket].state = REGISTER
+            c_socket.sendall('The username is exist,please entry another one!\r\n')
+        else :
+            #Database
+            storage = '''insert into user (name,password,onlineTime) values ('%s','%s',0)''' % (username,password)
+            self.cursor.execute(storage)
+            self.conn.commit()
+            self.clients[c_socket].state = LOGIN
+            c_socket.sendall('Register success,please login!\r\n')
+            c_socket.sendall('Please entry the username:\r\n')
 
     def user_offline(self,c_socket):
+        username = self.clients[c_socket].username
         #inputs remove
         self.inputs.remove(c_socket)
-        if self.clients.has_key(c_socket):
+        if self.clients[c_socket].state == ONLINE:
             print '***********************************************\n'
-            print self.clients[c_socket],' offline'
+            print self.clients[c_socket].username,' offline'
             print '***********************************************\n'
             #online time update
-            username = self.clients[c_socket]
             information = self.users[username]
-            query = ''' UPDATE user SET onlineTime = %d WHERE name = '%s' ''' % (time.time()-information.login_time+information.total_time,self.clients[c_socket] )
+            query = ''' UPDATE user SET onlineTime = %d WHERE name = '%s' ''' % (time.time()-information.login_time+information.total_time,username)
             self.store(query)
             #information remove
             if information.room_id != None:
                 self.quit_room(c_socket)
-            del self.clients[c_socket]
-            del self.users[username]
-            
+            del self.users[username] 
+        del self.clients[c_socket]     
         c_socket.close()
+        self.print_status()
     
     def game_start(self):
+        self.games.clear()
         for roomid in self.rooms.keys():
             number = []
             while len(number)<4:
                 number.append(random.randint(1,10))
-            self.games[rooid] = GameInformation(number)
+            self.games[roomid] = GameInformation(number)
             message = '-----------------21Game begin:'+str(number)+'---------------\r\n'
             for user in self.rooms[roomid]:
-                self.users[user].socket.sendall()
-            
+                self.users[user].socket.sendall(message)
+
+    def readline(self,c_socket):
+        result = ''
+        while True:
+            c = c_socket.recv(1024)
+            result += c
+            if c.endswith('\n'):
+                break;
+            elif c == '':
+                message = self.clients[c_socket].username+' offline'
+                raise Exception(message)
+        return result.strip() 
+           
     def get_command(self,message,number):
         strs = (message.strip()+' ').split(' ')
         result = []
@@ -321,6 +350,16 @@ class ChatRoomServer:
         conn.commit()
         conn.close()
 
+def evalue(expression):
+    result = None
+    op_stack = Stack()
+    num_stack = Stack()
+    index ,length= 0,len(expression)
+    print eval(expression)
+    while True:
+        if index >= len():
+            break
+
 
 server = ChatRoomServer()
 #print server.get_command('  chatall   jfdlj  ',2)
@@ -329,9 +368,12 @@ server = ChatRoomServer()
 #print server.get_command('  chatall    ',2)
 #print server.get_command('  chatto jack ',3)
 #print server.get_command('  chatt tom',3)
-print server.get_command('chatto zhangh fjosjo',3)
-try:
-    server.process()
-finally:
-    server.quit()
+exp = '((5-2)*(3+4))'
+print exp.split(' +-*/()')
+#evalue('3+3*5')
+#print server.get_command('chatto zhangh fjosjo',3)
+#try:
+#    server.process()
+#finally:
+#    server.quit()
 

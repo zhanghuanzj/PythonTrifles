@@ -2,6 +2,7 @@ import socket
 import select
 import sqlite3
 import time
+import random
 
 class UserInformation:
     def __init__(self):
@@ -9,6 +10,13 @@ class UserInformation:
         self.total_time = 0
         self.room_id = None
         self.socket = None
+
+class GameInformation:
+    def __init__(self,num):
+        self.number = num
+        self.username = None
+        self.value = None
+        self.time = None
 
 class ChatRoomServer:
     def __init__(self):
@@ -27,6 +35,7 @@ class ChatRoomServer:
         self.users = {}                     #<username>:information
         self.inputs = [self.listen_socket]  #select read set
         self.rooms = {}                     #<roomid>:[members]
+        self.games = {}                     #game
 
     def readline(self,c_socket):
         result = ''
@@ -38,12 +47,15 @@ class ChatRoomServer:
             elif c == '':
                 message = self.clients[c_socket]+' offline'
                 raise Exception(message)
-        return result
+        return result.strip()
 
     #Main loop
     def process(self):
         while True:
             print 'Wating for request...'
+            current_time = time.localtime(time.time())
+            if current_time[4] in (0,30,57,56):
+                pass
             rs,ws,es = select.select(self.inputs,[],[])
             for r in rs:
                 if r is self.listen_socket:     #listen socket
@@ -67,26 +79,39 @@ class ChatRoomServer:
     
     #need handle................................
     def command_handle(self,c_socket,message):
-        command = message.strip()
         if c_socket not in self.clients:
-            self.user_handle(c_socket,command)
+            if message == 'login':
+                self.user_login(c_socket)
+            elif message == 'register':
+                self.user_register(c_socket)
+            else:
+                c_socket.sendall('Command error!\r\n') 
         else:
             #[command]
-            if command == 'quitroom':
+            if message == 'quitroom':
                 self.quit_room(c_socket)
             else:
-                #[command]<user>(value)
-                if command.startswith('chatto'):
-                    pass
-                else:
-                    if command.find(' ') == -1:
-                        raise Exception('Command error')
-                    if command.startswith('createroom'):
-                        self.create_room(c_socket,command[len('createroom'):])
-                    elif command.startswith('enterroom'):
-                        self.enter_room(c_socket,value)
-                    elif command.startswith('chatall'):
-                        self.chatall(c_socket,value)
+                try:
+                    #[command]<user>(value)
+                    if message.startswith('chatto '):
+                        result = self.get_command(message,3)
+                        user,words = result[1], result[2]
+                        self.chatto(c_socket,user,words)
+                    #[command](value)
+                    else:
+                        result = self.get_command(message,2)
+                        command,value = result[0],result[1]
+                        if command == 'createroom':
+                            self.create_room(c_socket,value)
+                        elif command == 'enterroom':
+                            self.enter_room(c_socket,value)
+                        elif command == 'chatall':
+                            self.chatall(c_socket,value)
+                        elif command == 'chatroom':
+                            self.chatroom(c_socket,message)
+                except Exception:
+                    print 'exception'
+                    c_socket.sendall('Command error!\r\n') 
 
     def create_room(self,c_socket,roomid):
         if self.rooms.has_key(roomid):
@@ -137,49 +162,45 @@ class ChatRoomServer:
             for user in self.rooms[self.users[username].room_id]:
                 if user != username:
                     self.users[user].socket.sendall(message)
-
+    
     def chatto(self,c_socket,user,message):
         username = self.clients[c_socket]
         message = username + ':' + message +'\r\n'
-        self.users[user].socket.sendall(message)
+        query = '''SELECT * FROM user WHERE name = '%s' ''' % (user,)
+        if self.is_exist(query):
+            if self.users.has_key(user):
+                self.users[user].socket.sendall(message)
+            else:
+                c_socket.sendall('%s is not online!\r\n' % (user,))
+        else:
+            c_socket.sendall('There is no user named %s!\r\n' % (user,))
 
-    #Login ro Register
-    def user_handle(self,c_socket,command):
-        is_login_success = False
-        if command in ( 'Login', 'login'):
-            while True:
-                try:
-                    c_socket.sendall('Please entry the username:\r\n')
-                    username = self.readline(c_socket)
-                    c_socket.sendall('Please entry the password:\r\n')
-                    password = self.readline(c_socket)
-                    disconnected = False
-                except Exception:
-                    disconnected = True
-                if disconnected:
-                    self.user_offline(c_socket)
+    def user_login(self,c_socket):
+        while True:
+            try:
+                c_socket.sendall('Please entry the username:\r\n')
+                username = self.readline(c_socket)
+                c_socket.sendall('Please entry the password:\r\n')
+                password = self.readline(c_socket)
+                query = '''SELECT * FROM user WHERE name = '%s' AND password = '%s' ''' % (username,password)
+                disconnected = False
+            except Exception:
+                disconnected = True
+            if disconnected:
+                self.user_offline(c_socket)
+                break
+            else:
+                print username,password
+                if not self.is_exist(query):
+                    c_socket.sendall('Login error please try again!\r\n')
                 else:
-                    print username,password
-                    if not self.user_login(username,password):
-                        c_socket.sendall('Login error please try again!\r\n')
-                    else:
-                        c_socket.sendall('Login success,welcome to the game lobby!\r\n' )
-                        #user information load
-                        self.clients[c_socket] = username
-                        self.users[username] = UserInformation()
-                        self.users[username].total_time = self.get_total_time(username)
-                        self.users[username].socket = c_socket
-                        break
-        elif command in ('Register','register'):
-            self.user_register(c_socket)
-        else :
-            c_socket.sendall('Command Error!\r\n')
-        return is_login_success  
-    
-
-    def user_login(self,username,password):
-        query = '''SELECT * FROM user WHERE name = '%s' AND password = '%s' ''' % (username,password)
-        return self.is_exist(query)
+                    c_socket.sendall('Login success,welcome to the game lobby!\r\n' )
+                    #user information load
+                    self.clients[c_socket] = username
+                    self.users[username] = UserInformation()
+                    self.users[username].total_time = self.get_total_time(username)
+                    self.users[username].socket = c_socket
+                    break
 
     def user_register(self,c_socket):
         c_socket.sendall('Please entry your username and password:\r\n')
@@ -194,6 +215,7 @@ class ChatRoomServer:
                 disconnected = True
             if disconnected:
                 self.user_offline(c_socket)
+                break
             else:
                 query = '''SELECT * FROM user WHERE name = '%s' ''' % (username,)
                 if self.is_exist(query):
@@ -226,10 +248,18 @@ class ChatRoomServer:
             
         c_socket.close()
     
+    def game_start(self):
+        for roomid in self.rooms.keys():
+            number = []
+            while len(number)<4:
+                number.append(random.randint(1,10))
+            self.games[rooid] = GameInformation(number)
+            message = '-----------------21Game begin:'+str(number)+'---------------\r\n'
+            for user in self.rooms[roomid]:
+                self.users[user].socket.sendall()
+            
     def get_command(self,message,number):
         strs = (message.strip()+' ').split(' ')
-        if len(strs)<number:
-            raise Exception('command error')
         result = []
         value = ''
         for s in strs:
@@ -237,14 +267,17 @@ class ChatRoomServer:
             if s != '' and len(result)!=number-1:
                 result.append(s)
             elif len(result) == number-1:
-                value += s
-        result.append(value) 
+                value += s+' '
+        result.append(value.strip())
+        if len(result)<number:
+            raise Exception('command error')
         if number == 2:
             if result[0] not in ('chatall','chatroom','createroom','enterroom'):
                 raise Exception('command error')
         elif number == 3:
             if result[0] != 'chatto':
                 raise Exception('command error')
+        return result
             
 
     def get_total_time(self,username):
@@ -263,6 +296,7 @@ class ChatRoomServer:
         if item.fetchone() != None:
             exist = True
         return exist
+
     def store(self,query):
         self.cursor.execute(query)
         self.conn.commit()
@@ -287,8 +321,15 @@ class ChatRoomServer:
         conn.commit()
         conn.close()
 
+
 server = ChatRoomServer()
-server.get_command('  chatall   jfdlj  ')
+#print server.get_command('  chatall   jfdlj  ',2)
+#print server.get_command('  chatto jack   jfdlj  ',3)
+#print server.get_command('  chatto tom  d d ',3)
+#print server.get_command('  chatall    ',2)
+#print server.get_command('  chatto jack ',3)
+#print server.get_command('  chatt tom',3)
+print server.get_command('chatto zhangh fjosjo',3)
 try:
     server.process()
 finally:

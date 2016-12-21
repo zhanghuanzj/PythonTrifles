@@ -3,31 +3,12 @@ import select
 import sqlite3
 import time
 import random
+from string import maketrans
+from threading import Timer 
+import traceback
 
 CONNECTED,LOGIN,REGISTER,ENTER,ENROLL,ONLINE = 0,1,2,3,4,5
 
-class Stack:
-    def __init__(self):
-        self.items = []
-
-    def is_empty(self):
-        return len(self.items)==0
-
-    def push(self,item):
-        self.items.append(item)
-    
-    def pop(self):
-        if not self.is_empty():
-            return self.items.pop()
-
-    def peek(self):
-        if self.is_empty():
-            raise Exception('Expression error')
-        else:
-            return self.items[len(self.items)-1]
-
-    def size(self):
-        return len(self.items)
 
 class UserInformation:
     def __init__(self):
@@ -42,6 +23,7 @@ class GameInformation:
         self.username = None
         self.value = None
         self.time = None
+        self.begin_time = time.time()
 
 class ConnectionInformation:
     def __init__(self):
@@ -54,7 +36,8 @@ class ChatRoomServer:
         # Database
         self.conn = sqlite3.connect('test.db')
         self.cursor = self.conn.cursor()
-        self.gaming = False
+        self.is_first = True
+        self.gaming = 30
         # Address
         HOST = socket.gethostname()
         PORT = 7777
@@ -74,8 +57,13 @@ class ChatRoomServer:
         while True:
             print 'Wating for request...'
             current_time = time.localtime(time.time())
-            if (not self.gaming) and current_time[4] in (9,11,30,57,56):
-                self.game_start()
+            if current_time[4] in (0,30,56):
+                print '*:',current_time[4]
+                print '*:',self.gaming
+                print '*:',self.is_first
+                if self.is_first or (current_time[4] != self.gaming):
+                    self.gaming = current_time[4]
+                    self.game_start()
             rs,ws,es = select.select(self.inputs,[],[],2)
             for r_socket in rs:
                 if r_socket is self.listen_socket:     #listen socket
@@ -137,7 +125,7 @@ class ChatRoomServer:
                     else:
                         result = self.get_command(message,2)
                         command,value = result[0],result[1]
-                        print "+++++:",result
+                        print 'result:',result
                         if command == 'createroom':
                             self.create_room(c_socket,value)
                         elif command == 'enterroom':
@@ -145,8 +133,11 @@ class ChatRoomServer:
                         elif command == 'chatall':
                             self.chatall(c_socket,value)
                         elif command == 'chatroom':
-                            self.chatroom(c_socket,message)
-                except Exception:
+                            self.chatroom(c_socket,value)
+                        elif command == '21game':
+                            self.game_handle(c_socket,value)
+                except Exception,e:
+                    print traceback.format_exc()
                     c_socket.sendall('Command error!\r\n') 
 
     
@@ -181,7 +172,6 @@ class ChatRoomServer:
             c_socket.sendall('Quit the room %s !\r\n' % (roomid,))
             if len(self.rooms[roomid]) == 0:
                 del self.rooms[roomid]
-                del self.games[roomid]
             self.print_status()
 
     def chatall(self,c_socket,message):
@@ -265,15 +255,74 @@ class ChatRoomServer:
         self.print_status()
     
     def game_start(self):
-        self.games.clear()
+        self.is_first = False
+        self.games.clear()  #clear the game information
         for roomid in self.rooms.keys():
             number = []
             while len(number)<4:
                 number.append(random.randint(1,10))
-            self.games[roomid] = GameInformation(number)
             message = '-----------------21Game begin:'+str(number)+'---------------\r\n'
+            number.sort()
+            self.games[roomid] = GameInformation(number)
             for user in self.rooms[roomid]:
                 self.users[user].socket.sendall(message)
+        #15 seconds game time
+        Timer(15,self.game_over).start()
+    
+    def game_over(self):
+        self.gaming = False
+        for roomid in self.games.keys():
+            if self.games[roomid].username != None:
+                second = self.games[roomid].time - self.games[roomid].begin_time
+                message = 'Room[%s]:The winner is %s,value is %d,use %.2f seconds!\r\n' % (roomid,self.games[roomid].username,self.games[roomid].value,second)
+            else:
+                message = 'Room[%s]:No winner!\r\n' % (roomid,)
+            for user in self.rooms[roomid]:
+                self.users[user].socket.sendall(message)
+        
+    
+    def game_handle(self,c_socket,expression):
+        if self.gaming:
+            username = self.clients[c_socket].username
+            roomid = self.users[username].room_id
+            if roomid == None:
+                c_socket.sendall("You are not in the room, can't participate in the 21Game!\r\n")    
+            else:
+                try:
+                    if self.games[roomid].value != 21:
+                        value = self.evalue(expression,self.games[roomid].number)
+                        if value == 21 or value > self.games[roomid].value: #better
+                            self.games[roomid].value = value
+                            self.games[roomid].time = time.time()
+                            self.games[roomid].username = username
+                    c_socket.sendall("Result submitted!\r\n") 
+                except Exception:
+                    c_socket.sendall("Expression Error!\r\n") 
+        else:
+            c_socket.sendall('21Game not begin!\r\n')
+
+    def get_numbers(self,expression):
+        table = maketrans('+-*/()','      ')
+        numbers = expression.translate(table).split(' ')
+        print numbers
+        check_list = []
+        for num in numbers:
+            if num.isdigit():
+                check_list.append(int(num))
+            elif num!='':
+                raise Exception('Expression Error!')
+        if len(check_list)!=4:
+            raise Exception('Expression Error!')
+        return check_list
+    
+    def evalue(self,expression,game_number):
+        #number check
+        check_list = self.get_numbers(expression)
+        check_list.sort()
+        for i in range(4):
+            if check_list[i]!=game_number[i]:
+                raise Exception('Expression Error!')
+        return eval(expression)
 
     def readline(self,c_socket):
         result = ''
@@ -301,7 +350,7 @@ class ChatRoomServer:
         if len(result)<number:
             raise Exception('command error')
         if number == 2:
-            if result[0] not in ('chatall','chatroom','createroom','enterroom'):
+            if result[0] not in ('chatall','chatroom','createroom','enterroom','21game'):
                 raise Exception('command error')
         elif number == 3:
             if result[0] != 'chatto':
@@ -350,30 +399,34 @@ class ChatRoomServer:
         conn.commit()
         conn.close()
 
-def evalue(expression):
-    result = None
-    op_stack = Stack()
-    num_stack = Stack()
-    index ,length= 0,len(expression)
-    print eval(expression)
-    while True:
-        if index >= len():
-            break
-
-
+print repr(time.localtime(time.time())[4])
 server = ChatRoomServer()
+class C:
+    def __init__(self,number):
+        self.l = number
+def fun():
+    li = []
+    li.append(3)
+    li.sort()
+    c = C(li)
+    
+    print c.l
+fun()    
 #print server.get_command('  chatall   jfdlj  ',2)
 #print server.get_command('  chatto jack   jfdlj  ',3)
 #print server.get_command('  chatto tom  d d ',3)
 #print server.get_command('  chatall    ',2)
 #print server.get_command('  chatto jack ',3)
 #print server.get_command('  chatt tom',3)
-exp = '((5-2)*(3+4))'
-print exp.split(' +-*/()')
-#evalue('3+3*5')
+#exp = '((5-2)*(3+4))'
+#print exp.split(' +-*/()')
+#print evalue('((5-2)*(3+4))',[2,3,4,5])
+#print evalue('5-2*(3+4)',[2,3,4,5])
+#print server.evalue('9*10+2-7',[2,7,9,10])
+#print server.evalue('5-2*3+4',[2,3,4,5])
 #print server.get_command('chatto zhangh fjosjo',3)
-#try:
-#    server.process()
-#finally:
-#    server.quit()
+try:
+    server.process()
+finally:
+    server.quit()
 

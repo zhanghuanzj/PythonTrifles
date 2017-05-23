@@ -124,7 +124,8 @@ class GameServer:
     #message handle
     def command_handle(self,c_socket,message):
         messages = message.split('#')
-        #print messages
+        print "FromClient:"
+        print messages
         self.user_handle(c_socket,messages[0])
         self.user_weapon_update(c_socket,messages[1])
         self.zombie_update(c_socket,messages[2])
@@ -162,6 +163,7 @@ class GameServer:
                 self.clients[self.users[username].socket].message += weapon
 
     def zombie_update(self,c_socket,message):
+        self.clients[c_socket].message += '#'
         if message==None or message =='':
             return
         username = self.clients[c_socket].username
@@ -179,11 +181,12 @@ class GameServer:
                 self.zombielist[index].z = zombie['z']
                 self.zombielist[index].deadtime = zombie['deadtime']
                 self.zombielist[index].command = None
-                x2 = math.pow(self.zombielist[index].x-self.users[username].x,2)
-                y2 = math.pow(self.zombielist[index].y-self.users[username].y,2)
-                z2 = math.pow(self.zombielist[index].z-self.users[username].z,2)
+                x2 = math.pow(self.zombielist[index].x-self.users[username].user.x,2)
+                y2 = math.pow(self.zombielist[index].y-self.users[username].user.y,2)
+                z2 = math.pow(self.zombielist[index].z-self.users[username].user.z,2)
                 distance = math.sqrt(x2+y2+z2)
                 if self.zombielist[index].hp <= 0 :
+                    self.zombielist[index].command = "Dead"
                     if self.zombielist[index].deadtime > 0.001:#already dead
                         if time.time()-self.zombielist[index].deadtime >30:
                             self.zombielist[index].hp = ZombiePosition[index][3]
@@ -194,20 +197,24 @@ class GameServer:
                             self.zombielist[index].command = "Alive"
                     else:
                         self.zombielist[index].deadtime = time.time()
+                        
                 else:
                     if distance <= AttackDistance[self.zombielist[index].type]:
                         self.zombielist[index].command = "Attack"
                     elif distance <= 50:
                         self.zombielist[index].command = "Move"
             index = index+1
+        zombies = ""
         for zom in self.zombielist:
-            zombies = json.dumps(self.get_dict(zom)) + "$"
-        print zombies
-        self.clients[self.users[username].socket].message += '#'+zombies
+            zombies += json.dumps(self.get_dict(zom)) + "$"
+        #print zombies
+        self.clients[self.users[username].socket].message += zombies
 
     def zombie_acquire(self,username):
+        zombies = ""
         for zom in self.zombielist:
-            zombies = json.dumps(self.get_dict(zom)) + "$"
+            zombies += json.dumps(self.get_dict(zom)) + "$"
+        print "--------------------------------"
         print zombies
         self.clients[self.users[username].socket].message += '#'+zombies
 

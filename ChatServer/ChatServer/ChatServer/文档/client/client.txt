@@ -1,0 +1,22 @@
+client使用windows自带的telnet进行模拟，相应的命令如下：
+
+1.服务器连接
+	telnet 服务器ip地址 7777
+
+2.用户基本操作
+	login 		用户登录
+	register 	用户注册
+	quit 		用户下线(仅当上线后可用)
+
+3.多频道聊天
+	chatto username message 	与某个用户私聊
+	chatroom message			房间内聊天
+	chatall	message				与所有人聊天	
+
+4.房间操作
+	createroom roomid	房间创建
+	enterroom roomid	进入房间
+	quitroom roomid		离开房间
+
+5.21点游戏
+	21game expression	参与游戏竞赛

@@ -3,15 +3,11 @@ import socket
 import select
 import sqlite3
 import time
-import random
 import json
-import struct 
 import math
-from string import maketrans
-from threading import Timer 
 
-CONNECTED,LOGIN,REGISTER,ENTER,ENROLL,CHECK,ONLINE = 0,1,2,3,4,5,6
-timer_interval=1
+CONNECTED, LOGIN, REGISTER, ENTER, ENROLL, CHECK, ONLINE = 0, 1, 2, 3, 4, 5, 6
+timer_interval = 1
 AttackDistance = {'zombie':1,'hunter':2,'tank':2.5}
 ZombiePosition = [(-32,0,-20,100),(-32,0,-15,100),(-35,0,-13,100),(-38,0,-13,100),(-21,0,9,100),
                   (-22,0,5.0,100),(-16,0,2.5,100),(17,0,-6.0,100),(17,0,-1.0,100),(-22,0,-16,100),
@@ -82,24 +78,24 @@ class GameServer:
                 zom.id = result[0]
                 zom.hp = result[1]
                 zom.type = result[2]
-                zom.x = result[3]
-                zom.y = result[4]
-                zom.z = result[5]
-                zom.deadtime = result[6]
+                zom.x = ZombiePosition[zom.id][0]
+                zom.y = ZombiePosition[zom.id][1]
+                zom.z = ZombiePosition[zom.id][2]
+                zom.deadtime = 0.0
                 self.zombielist.append(zom)
-      
 
-    #Main loop
+	# Main loop
     def process(self):
         pre_time = time.time()
         while True:
             print 'Waiting for request...'
             current_time = time.time()
-            if current_time-pre_time > 1.0:
+            print time.time()-current_time
+            if current_time - pre_time > 3.0:
                 pre_time = current_time
                 print "Storing......."
                 self.user_information_store()
-                self.zombie_store()
+            print time.time()-current_time
             rs,ws,es = select.select(self.inputs,[],[],2)
             for r_socket in rs:
                 if r_socket is self.listen_socket:     #listen socket
@@ -110,28 +106,28 @@ class GameServer:
                 else:                           #client socket
                     try:
                         message = self.readline(r_socket)
-                        print "Message :" + message
-                        disconnected = False
-                    except Exception:
-                        disconnected = True
-                    if disconnected:
-                        self.user_offline(r_socket)
-                    else:
                         print '----------------------------service----------------------------'
                         self.command_handle(r_socket,message)
+                        #print "Message :" + message
+                        disconnected = False
+                    except Exception, e: 
+                    	print e.message                  
+                        self.user_offline(r_socket)
         self.listen_socket.close()
 
     #message handle
     def command_handle(self,c_socket,message):
         messages = message.split('#')
-        print "FromClient:"
-        print messages
+        #print "FromClient:"
+        #print messages
         self.user_handle(c_socket,messages[0])
         self.user_weapon_update(c_socket,messages[1])
         self.zombie_update(c_socket,messages[2])
         c_socket.sendall(self.clients[c_socket].message)
-        print "ToClient:"
-        print self.clients[c_socket].message
+        
+        #print "ToClient:"
+        #print self.clients[c_socket].message
+        
 
     def user_weapon_update(self,c_socket,message):
         if message==None or message =='':
@@ -140,7 +136,7 @@ class GameServer:
         weapons = message.split('$')
         for weapon in weapons:
             if weapon != '':
-                print weapon
+                #print weapon
                 w = json.loads(weapon)
                 query = '''select * from weapon where name = '%s' and weapon = '%s' ''' %(username,w['weaponName'])
                 if self.is_exist(query):
@@ -171,7 +167,7 @@ class GameServer:
         index = 0
         for zom in zombies:
             if zom != '':
-                print zom
+                #print zom
                 zombie = json.loads(zom)
                 self.zombielist[index].id = zombie['id']
                 self.zombielist[index].hp = zombie['hp']
@@ -179,7 +175,7 @@ class GameServer:
                 self.zombielist[index].x = zombie['x']
                 self.zombielist[index].y = zombie['y']
                 self.zombielist[index].z = zombie['z']
-                self.zombielist[index].deadtime = zombie['deadtime']
+                #self.zombielist[index].deadtime = zombie['deadtime']
                 self.zombielist[index].command = None
                 x2 = math.pow(self.zombielist[index].x-self.users[username].user.x,2)
                 y2 = math.pow(self.zombielist[index].y-self.users[username].user.y,2)
@@ -201,7 +197,7 @@ class GameServer:
                 else:
                     if distance <= AttackDistance[self.zombielist[index].type]:
                         self.zombielist[index].command = "Attack"
-                    elif distance <= 50:
+                    elif distance <= 15:
                         self.zombielist[index].command = "Move"
             index = index+1
         zombies = ""
@@ -214,8 +210,6 @@ class GameServer:
         zombies = ""
         for zom in self.zombielist:
             zombies += json.dumps(self.get_dict(zom)) + "$"
-        print "--------------------------------"
-        print zombies
         self.clients[self.users[username].socket].message += '#'+zombies
 
     def zombie_store(self):
@@ -261,11 +255,12 @@ class GameServer:
                 self.user_offline(self.users[username].socket)
                 self.clients[c_socket] = ConnectionInformation()
             #user information load
-            
+            self.clients[c_socket].name = username
+            self.clients[c_socket].password = password
             self.users[username] = UserInformation()
             self.users[username].socket = c_socket
             self.print_status()
-            self.user_logined(username,password)
+            self.user_logined(username, password)
             tempuser = self.users[username].user
             tempuser.request = "LoginSuccess"
             self.clients[c_socket].message = json.dumps(self.get_dict(tempuser))+"#"
@@ -292,8 +287,6 @@ class GameServer:
 
     #user information
     def user_information_update(self,c_socket,user):
-        print "Recevie:"
-        print user
         username = user['username']
         #self.users[username].username = username
         self.users[username].user.exp = user['exp']
@@ -305,33 +298,27 @@ class GameServer:
         self.users[username].user.y = user['y']
         self.users[username].user.z = user['z']
         self.users[username].user.hero = user['hero']
-        print "============================="
-        print user['hero']
-        print self.users[username].user.hero
         self.clients[c_socket].message = '#';
 
     #user information store interval
     def user_information_store(self):
         for name in self.users:
             user = self.users[name].user
-            print "Store Hero------------------"
-            print name
-            print user
-            print user.hero
+            #print "Store Hero------------------"
             query = ''' update user set exp = '%d',nextExp = '%d',hp = '%d',maxhp = '%d',lv = '%d',x = '%f',y = '%f',z = '%f',hero = '%s' where name = '%s' ''' % (user.exp,user.nextExp,user.hp,user.maxhp,user.lv,user.x,user.y,user.z,user.hero,name)
             self.store(query)
 
 
 
     def user_offline(self,c_socket):
+    	self.user_information_store()
         username = self.clients[c_socket].username
         #inputs remove
         self.inputs.remove(c_socket)
-        if self.clients[c_socket].state == ONLINE:
-            print '***********************************************\n'
-            print self.clients[c_socket].username,' offline'
-            print '***********************************************\n'
-            del self.users[username] 
+        print '***********************************************\n'
+        print self.clients[c_socket].username,' offline'
+        print '***********************************************\n'
+        del self.users[username] 
         del self.clients[c_socket]     
         c_socket.close()
         self.print_status()
@@ -340,8 +327,6 @@ class GameServer:
         query = ''' select * from user where name = '%s' and password = '%s' ''' % (username,password)
         item = self.cursor.execute(query)
         result = item.fetchone()
-        print "Item:"
-        print result[0]
         self.users[username].user.username = result[0]
         self.users[username].user.password = result[1]
         self.users[username].user.exp = int(result[2])
@@ -361,14 +346,14 @@ class GameServer:
             c = c_socket.recv(1024)
             result += c
             if c.endswith('\n'):
-                break;
+                break
             elif c == '':
                 message = self.clients[c_socket].username+' offline'
                 raise Exception(message)
         return result.strip() 
          
     #Judge weither the record is exist       
-    def is_exist(self,query):
+    def is_exist(self, query):
         exist = False
         #Database
         item = self.cursor.execute(query)
@@ -403,7 +388,6 @@ class GameServer:
         item = cursor.execute('select * from user where name = "zhanghuanzj" and password = "12345678"')
         result = item.fetchone()
         cursor.execute('update user set hp = 100 where name = "gujiao"')
-        print result[0]
         cursor.close()
         conn.commit()
         conn.close()

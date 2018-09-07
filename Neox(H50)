@@ -1,0 +1,1006 @@
+Python
+	isinstance(obj, basestring) 等价于 isinstance(obj, (str, unicode))
+	enumerate(list, 起始索引=0)
+	eval (reward_client_data参数data转换)
+	　　功能：将字符串str当成有效的表达式来求值并返回计算结果。
+	　　语法： eval(source[, globals[, locals]]) -> value
+	　　参数：
+	　　　　source：一个Python表达式或函数compile()返回的代码对象
+	　　　　globals：可选。必须是dictionary
+	　　　　locals：可选。任意map对象
+		实例：
+			v = 'lv + 4'
+			print eval(v,{},{'lv':5})  #9
+
+	math:
+		math.degrees(radian) //弧度转角度
+		math.radians(degree) //角度转弧度
+
+	random.choice(seq) 
+		seq--可以是一个列表，元组或字符串
+		返回随机项
+
+	函数装饰器&闭包
+		装饰器定义：
+			以另一个函数为参数的可调用对象
+			样例：
+				@decorate1
+				@decorate2
+				def target_func()
+				target_func = decorate1(decorate2(target_func))
+			注意点：
+				$ 经常内部定义一个方法以替换传入的方法
+				$ 装饰器在模块import时被调用
+				$ 装饰器一般与被装饰函数分模块定义
+			装饰器可用于策略模式：
+				$ 函数名无限制
+				$ 标记易识别,易去除
+				$ 可跨模块进行定义
+			带参数的装饰器
+				在外包裹一个装饰器工厂，根据参数返回相应的装饰器
+				def decorate_factory(param):
+					def decorate(func):
+						def newfunc(*args, **kwargs)
+							#implement or The new function the decorator returns
+							func(*args, **kwargs)
+						return newfunc
+					return decorate
+
+		变量作用域：
+			在编译函数体时,当有变量的赋值语句时,该变量被认为是局部变量
+		闭包（注意内存泄漏）：
+			函数以及在其定义时保留的所绑定的引用
+			1.正常的回收
+			class A(object):
+				def __init__(self):
+					self.name = "A"
+
+				def __del__(self):
+					print "del A"
+
+			print "before A()"
+			A()
+			print "after A()"
+
+			2.外部引用闭包函数，不会自动回收
+			globalRef = None
+
+			class A(object):
+				def __init__(self):
+					self.name = "A"
+
+					def innerFunc():
+						print self.name
+
+					global globalRef
+					globalRef = innerFunc
+
+				def __del__(self):
+					print "del A"
+
+			print "before A()"
+			A()
+			print "after A()"
+
+			print "before globalRef = None"
+			globalRef = None
+			print "after globalRef = None"
+			3.循环引用
+			import gc
+			class A(object):
+				def __init__(self):
+					self.name = "A"
+					self.func = None
+
+					def innerFunc():
+						print self.name
+
+					self.func = innerFunc
+
+				def __del__(self):
+					print "del A"
+
+			print "before A()"
+			A()
+			print "after A()"
+			print gc.garbage
+			print "before gc.collect()"
+			gc.collect()# 把对象放进gc.garbage中
+			print "after gc.collect()"
+			print gc.garbage
+			gc.garbage[0].__del__()
+			需要python执行垃圾循环程序才能回收A对象。这里例子中有个特殊情况，A类定义了_del_方法，而gc模块唯一处理不了的循环引用就是定义了该方法的类，此时垃圾回收会把对象放进gc.garbage中，需要用户手动调用del来清除。
+			一般情况下没有定义_del_方法的话，垃圾回收可以释放这块内存空间。
+			
+	Python内置的@property装饰器就是负责把一个方法变成属性调用的：
+		@property
+		def value(self):
+			return self.value
+
+		@value.setter
+		def value(self, v):
+			# some check
+			self.value = v
+
+	访问private属性函数
+		GWDungeon.GWDungeon._GWDungeon__update_list_view_scroll
+
+	格式化
+		format(obj, '0.4f')
+		'output {value:0.4f}'.format(value=4)
+		'render fps is below {0}'.format(5)
+		'my name is {name},age is'.format(**hash)#hash是dict,且dict中item可多可少
+
+	__slots__
+		限制class的属性
+		更快的属性访问速度
+		减少内存消耗
+		class Student(object):
+			__slots__ = ('name', 'age', '__weakref__') #仅有name和age两个属性,可以弱引用
+
+	__
+		safety but not security
+
+	Use __new__ when you need to control the creation of a new instance. 第一个参数cls是当前正在实例化的类
+	Use __init__ when you need to control initialization of a new instance.
+	__new__ is the first step of instance creation. It's called first, and is responsible for returning a new instance of your class. In contrast, __init__ doesn't return anything; it's only responsible for initializing the instance after it's been created.
+	In general, you shouldn't need to override __new__ unless you're subclassing an immutable type like str, int, unicode or tuple.
+
+	对象基本：
+		is 比较两对象的id(内存地址,id(a)返回所指向对象的内存地址),创建完便不会改变,效率高于==,因为不可重载，无需做多余的解析
+		== 比较两对象的内容, a==b是a.__eq__(b)的语法糖
+		from copy import deepcopy
+			copy()	浅拷贝
+			deepcopy()深拷贝
+		del 只是减少引用计数,不会立马销毁
+
+	迭代器
+		实现了__iter__方法的对象时可迭代的(返回迭代器)，实现了next方法的对象是迭代器
+	生成器
+		包含yield语句的函数称为生成器
+
+	list->dict
+		l = [('a',1),('b',2),('c',3),]
+		d = dict(dl)
+
+	type is a class
+		一个参数：返回类型
+		三个参数：(classname, (baseclass1,baseclass2), {class attributes dict})创建新类
+
+	__metaclass__
+		用于创建类的类,默认为type
+
+	常见GC算法
+		1.引用计数
+			原理：
+				在每个对象内部维护引用计数,当对象被引用时引用计数加一,当对象不被引用时引用计数减一。当引用计数为 0 时,自动销毁对象。
+			缺陷：
+				不能解决循环引用的问题。
+		2.Mark-Sweep法(标记清除法)
+			原理：
+				标记：从程序的根节点开始,递归地 遍历所有对象,将能遍历到的对象打上标记。
+				清除：将所有未标记的的对象当作垃圾销毁。
+			缺陷：
+				STW问题(Stop The World)。因为算法在标记时必须暂停整个程序，否则其他线程的代码可能会改变对象状态，从而可能把不应该回收的对象当做垃圾收集掉。当程序中的对象逐渐增多时，递归遍历整个对象树会消耗很多的时间
+		3.三色标记法
+		三色标记法是传统 Mark-Sweep 的一个改进，它是一个并发的 GC 算法。
+			原理:
+				首先创建三个集合：白、灰、黑。
+				将所有对象放入白色集合中。
+				然后从根节点开始遍历所有对象（注意这里并不递归遍历），把遍历到的对象从白色集合放入灰色集合。
+				之后遍历灰色集合，将灰色对象引用的对象从白色集合放入灰色集合，之后将此灰色对象放入黑色集合
+				重复 4 直到灰色中无任何对象
+				通过write-barrier检测对象有变化，重复以上操作
+				收集所有白色对象（垃圾）
+			缺陷：
+				可能程序中的垃圾产生的速度会大于垃圾收集的速度，这样会导致程序中的垃圾越来越多无法被收集掉。
+		4.分代收集
+			一般 GC 都会分三代,新生代（Young Generation）、年老代（Tenured Generation）和永久代（Permanent Generation）;在 .NET 中称之为第 0 代、第 1 代和第2代。
+			原理：
+				新对象放入第 0 代
+				当内存用量超过一个较小的阈值时，触发 0 代收集
+				第 0 代幸存的对象（未被收集）放入第 1 代
+				只有当内存用量超过一个较高的阈值时，才会触发 1 代收集
+				2 代同理
+			因为 0 代中的对象十分少，所以每次收集时遍历都会非常快（比 1 代收集快几个数量级）。只有内存消耗过于大的时候才会触发较慢的 1 代和 2 代收集。
+			因此，分代收集是目前比较好的垃圾回收方式。使用的语言（平台）有 jvm、.NET 。
+
+	正则表达式
+		import re
+			match:match(string[, pos[, endpos]])
+				pattern = re.compile(r"^abcd") 
+				pattern.match("abcd") #匹配成功
+				pattern.match(" abcd", 1) #匹配失败,1表示索引从1开始匹配,但是a不是^
+				pattern.match(" abcd"[1:]) #匹配成功
+				pattern = re.compile(r"\bfoo\b") #匹配单词开头、间隔(空格,.)或结尾
+				pattern.match(r"foo bar")
+
+				re.match(正则表达式, 需匹配的字符串) #使用多了之后缓存会越来越大，re.purge清除缓存
+			search:search(string[, pos[, endpos]])
+				不用从开头进行匹配
+				pattern = re.compile(r'^<HTML>', re.MULTILINE) #每行都是新的开始,^匹配每行的开头
+				pattern.search("<HTML>")		# ok
+				pattern.search(" <HTML>")		# None
+				pattern.search("  \n<HTML>")	# ok
+			findall
+				match、search只能匹配到单个对象，findall可以以list的形式返回输入里面的所有匹配，返回的不是匹配对象，而是匹配到的字符串
+			finditer
+				匹配方式与findall完全一样，不同之处在于，finditer返回的是一个迭代器（findall是list），迭代器的每个元素是一个匹配对象（findall返回的每个元素是匹配到的字符串）。正是如些，使用finditer相比findall，可以获得更多的匹配信息。
+			split:split(string, maxsplit=0)  (字符串, 限定分隔数int) 匹配则分隔
+				pattern = re.compile(r"\W")
+				pattern.split("Beautiful is better than ugly", 2)
+				返回结果：['Beautiful', 'is', 'better than ugly']
+
+				[将匹配上的包含进来]
+				pattern = re.compile(r"(-)")
+				pattern.split("hello-word")
+				返回结果：['hello', '-', 'word']
+			sub(repl, old_str, count = 0)
+				子串匹配替换,count为需要替换的个数,0表示全部替换
+				该方法将old_str中匹配到的部分用repl进行替换，并返回替换后的新字符串。
+				repl为替换的字符串 或 参数为MatchObject的函数
+
+				re.sub(regular_exp, repl, old_str)#有多少替换多少
+				•  -1234
+				•  A193, B123, C124
+				You must change it to the following:
+				•  A1234 
+				•  B193, B123, B124
+				def normalize_orders(matchobj):
+					if matchobj.group(1) == '-': 
+						return "A"
+					else: 
+						return "B"
+				re.sub('([-|A-Z])', normalize_orders, '-1234 A193 B123')
+				结果：'A1234 B193 B123'
+
+				运用group替换
+				text = "imagine a new *world*, a magic *world*"
+				pattern = re.compile(r'\*(.*?)\*')
+				pattern.sub(r"<b>\g<1><\\b>", text)	# \g<1>	为group[1]的值(\id或\g<id>、\g<name>)
+				结果：'imagine a new <b>world<\\b>, a magic <b>world<\\b>'
+			subn(repl, string, count=0)
+				和sub效果一样，只是返回值不一样
+				pattern.subn(r"<b>\g<1><\\b>", text)
+				结果：('imagine a new <b>world<\\b>, a magic <b>world<\\b>', 2) 一个tuple,替换后的字符串和替换的数量
+
+		MatchObject
+				pattern = re.compile(r"(\w+) (\w+)")
+				matchObj = pattern.search("Hello world")
+			group(gid)
+				group(0)与group()结果相同,返回所有匹配的结果 "Hello world"
+				group(1)返回匹配到的第一个'Hello'
+			groups
+				以tuple形式返回所有分组的内容。matchObj.groups() -> ("Hello", "world")
+			groupdict
+				给group取名
+				pattern = re.compile(r"(?P<first>\w+) (?P<second>\w+)?") #?P<first>
+				pattern.search("Hello world").group('first')
+				返回结果为："Hello"
+				pattern.search("Hello world").groupdict() #返回group组
+				返回结果为：{"first": "Hello", "second": "world"}
+				注意：groupdict只针对给定命名的分组才有效。比如：
+				pattern = re.compile(r"(\w+) (\w+)?")
+				pattern.search("Hello world").groupdict()
+				返回结果为：{ }
+			start(gid)
+				参数跟group方法一样，返回匹配到的内容在原输入中的起始位置。
+			end(gid)
+				同start方法，返回匹配到的内容在原输入中的结束位置+1。
+			span(gid)
+				返回匹配到的对应分组内容在原输入中的位置，形式为(start, end)。
+			expand(template): 
+				将匹配到的分组代入template中然后返回。template中可以使用\id或\g<id>、\g<name>引用分组
+				pattern.search("Hello world").expand(r"<b>\g<1><\\b>")
+				pattern.search("Hello world").expand(r"<b>\1<\\b>")
+				pattern.search("Hello world").expand(r"<b>\g<first><\\b>")
+				返回结果："<b>Hello<\\b>"
+
+		Compilation flags：
+			re.compile(r'^<HTML>', re.MULTILINE)
+
+			re.IGNORECASE or re.I
+				忽略大小写
+			re.MULTILINE or re.M
+				^可以匹配每行的开头
+			re.DOTALL or re.S
+				.可以匹配\n了
+
+	函数运行时间检测
+		t = timeit.timeit(stmt=myfun, number=n)
+
+	常见错误
+		格式化错误
+			ValueError: unsupported format character	(%d写成了d%)
+			too many values to unpack[ w,h = dict.get('w') 给予的数据少于需赋值的变量]
+
+	独占文件
+		不允许同时运行两个客户端：创建文件，存在则删除，第二个进程删除时会出错
+		file_debug = None
+		FILE_DEBUG_NAME = 'just_debug'
+		def debug_setting():
+			pass # Do something
+		def write_something():
+			global file_debug
+			try:
+				if os.path.exists(FILE_DEBUG_NAME):
+					os.remove(FILE_DEBUG_NAME)
+				file_debug = open(FILE_DEBUG_NAME, 'w')
+				debug_setting()
+			except:
+				pass
+
+	PyQt4
+		sip：https://www.riverbankcomputing.com/software/sip/download 解压到python Lib
+		PyQt4：https://sourceforge.net/projects/pyqt/files/PyQt4/PyQt-4.11.3/
+
+	sys._getframe() 获取调用栈() == (0)
+	sys._getframe(1).f_locals	#局部变量dict
+	print sys._getframe().f_code.co_filename 	#当前文件名，可以通过__file__获得
+	print sys._getframe(0).f_code.co_name   	#当前函数名
+	print sys._getframe(1).f_code.co_name   	#调用该函数的函数的名字，如果没有被调用，则返回<module>，貌似call stack的栈低
+	print sys._getframe().f_lineno 				#当前行号
+
+	Json模块dumps、loads、dump、load
+	1、json.dumps()
+		json.dumps()用于将dict类型的数据转成str
+	2、json.loads()
+		json.loads()用于将str类型的数据转成dict
+	3、json.dump()
+		json.dump()用于将dict类型的数据转成str，并写入到json文件中
+	4、json.load()
+		json.load()用于从json文件中读取数据
+
+	属性的引用、绑定与解绑定
+		__getattribute__(self, name) 
+			x.y 自动调用 x.__getattribute__('y')
+			有则返回属性，否则抛异常AttributeError
+　　　　　　重写__getattribute__()会导致实例的属性访问变慢。
+
+ 		__getattr__(self, name) 
+			当常规的属性访问(x.__class__ 或 x.__dict__ 的键访问)无法找到目标属性时，Python会调用 __getattr__() 方法；
+			没有会抛出AttributeError
+
+ 		__setattr__(self, name, value) 
+			x.y = value 时,会自动调用 x.__setattr__('y', value)
+			x.y = value 默认为 x.__dict__['y'] = value
+
+ 		__delattr__(self, name) 
+			del x.y 时,会调用 x.__delattr__('y')
+			del x.y 默认为 del x.__dict__['y']
+
+	可调用对象
+		__call__(self[, args...]) 
+
+	容器的特殊方法
+ 		__contains__(self, item) 
+		y in x 会调用 x.__contains__(y), 序列查值,字典查键
+
+ 		__delitem__(self, key) 
+		del x[key] 将会调用 x.__delitem__(key)
+ 
+		__getitem__(self, key) 
+		x[key] 调用 x.__getitem__(key)
+
+		__iter__(self) 
+		for i in x ,会调用 x.__iter__()
+
+		__len__(self) 
+		len(x)会调用 x.__len__()
+
+		__setitem__(self, key, value)
+		x[key] = value，会调用 x.__setitem__(key, value)
+
+Cocos
+	position 和anchorposition
+		position = origin(左下角) + (width * anchor.x, height * anchor.y)
+		设置pos便是将anchor所在的点放置在该位置上
+	setString 多颜色字体
+		#c颜色(16进制)
+		#n结束
+
+	listview
+		scrollToPercentHorizontal(水平百分比, 时间, 是否渐慢)
+								 percent   seconds  attenuated
+
+		listview无法滚动，可能是组件的contentSize没有设置正确
+
+	myNode.ccNode.setTextHorizontalAlignment(alignment):0[左对齐],1[居中对齐],2[右对齐]
+					setTextVerticalAlignment
+
+	selectTab(True)选中tab
+
+	textfield监听事件
+		TEXTFIELD_EVENT_ATTACH_WITH_IME = 0 	获得焦点(点击输入框)
+		TEXTFIELD_EVENT_DELETE_BACKWARD = 3 	删除文字
+		TEXTFIELD_EVENT_DETACH_WITH_IME = 1 	失去焦点(点击输入框以外的ui)
+		TEXTFIELD_EVENT_INSERT_TEXT = 2 		输入文字
+
+	cc.Director.getInstance().setProjection(0)	2D
+	cc.Director.getInstance().setProjection(1)	3D
+	
+	设置监听事件不下传递
+	setSwallowTouches(True)
+
+	setLayoutType():0绝对布局，1垂直，2水平
+
+	卡牌翻转：
+		ScaleTo(time, 0, 1) --> 替换图片 --> ScaleTo(time, 1, 1)
+		设置相机为2D --> RotateBy(time, Vec3(0, 90, 0)) --> 替换图片 --> RotateBy(time, Vec3(0, 90, 0))
+Neox
+	Basic:
+		模型绑定
+			model1.bind('socket',model2)
+		获取动画长度(毫秒)
+			def world.model.get_anim_length(self, o1)  
+				get_anim_length(anim)
+			参数 :
+				anim  : int或string  动画的索引或名字，如果为 None 表示当前动画
+			返回值 :
+				float  长度
+
+		音效播放
+			audio.play_event('path')
+			world.scene.set_scene_music_state(bool) 设定场景音效开关
+
+		性能分析：
+			prof = cProfile.Profile()
+			prof.enable()
+			prof.disable()
+			prof.dump_stats('filename.prof')
+
+		TabGroup创建
+		def addToGroup(self, name, tab, func, auto_select_first_tab=True, can_tab_none=False)
+
+		h50.ui_mgr.call_active_panel_method('PanelObjGraph', 'update_top_list', [msg], 'panel')
+
+		材质生成mtg
+		def get_mtg_data_from_mtl(model, mtl_path, independent_mtl=False):
+			mtg_datas = {}
+			mtl = render.material(mtl_path)
+			if mtl:
+				seg_count = model.get_segment_count()
+				for seg_idx in range(seg_count):
+					old_mtg = model.get_material_group_data(seg_idx)
+					mtg_data = render.material_group_data(old_mtg)
+					if mtg_data:
+						for i in range(old_mtg.count):
+							if old_mtg.get(i):
+								if independent_mtl:
+									mtl = render.material(mtl)
+								mtg_data.set(i, mtl)
+					mtg_datas[seg_idx] = mtg_data
+			return mtg_datas
+
+		隐藏武器特效
+			weapon = h50.avatar.visual.weapon_model
+			objs = weapon.get_socket_objects('weapon_fx') or []
+			for obj in objs:
+				obj.visible = False
+
+ShaderPuzzle:
+	Shader:
+		error:
+			Macro Attatch err 当时设定cache = "0", 改成cache = "1"就好了
+		相关函数:
+			saturate(val): 将值限定在[0,1]
+			transform(vec,val): 将vec乘以相应的系数
+			lerp(x, y, a): 返回xy的线性插值 x + (y – x ) * a
+	PostEffect:
+		DarkCorner:
+			1.获取贴图的α值,越是中心α值越大
+			2.dark = sin(saturate(α + DarkBegin) * π/2) //将暗角变换以正弦的形式过渡
+			3.transform(org_clr, pow(dark, DarkIntensity)* DarkAlpha) //将原始颜色与暗角值相乘org_clr*dc_value
+		Brightness：
+			org_clr*brightness即可
+		ScreenFilter：
+			主要用于过场动画编辑器的黑屏淡入淡出
+			float4(lerp(org_clr.xyz, screen_color.xyz, float3(screen_color.w)), 1.0f)
+		Gray:
+			1.gray = dot( org_clr.xyz, float3(0.299f, 0.587f, 0.114f)) //点积神奇的向量
+			2.float3 result = lerp(org_clr.xyz, float3(gray), float3(GrayIntensity)) //灰度插值
+			3.float4(result*float3(luminance), 1.0f) //乘以亮度系数
+		DOF：
+			高斯模糊GaussionBlur(正态分布)，设定(near_end, far_start, far_end, intensity)
+			1.由当前点开始上下垂直取2n+1个点，每个点的权重根据高斯分布计算并归一化(即总和变为1)
+				如：σ为1.0取三个点(0.20482377, 0.39894232, 0.20482377)这3个像素的权重总和等于0.80858986，如果只计算这3个点的加权平均，还必须让它们的权重之和等于1，因此上面3个值还要分别除以0.80858986
+				得到(0.25330984, 0.49338031, 0.255330984)
+			2.将取到的点合为一个点，每个点的权重根据上面计算可得 pv = po*0.49338031 + pv1*0.25330984 + pv2*0.25330984,最终作为下一步的贴图输出
+			3.根据SceneDepthTexture获取像素点的深度depth_view,计算得到相应的模糊系数blend_factor
+				if(depth_view < near_end)
+					blend_factor = saturate(1.0f - depth_view / near_end)
+				elif(far_start < depth_view < far_end)
+					blend_factor = saturate((depth_view - far_start) / (far_end - far_start))
+				else
+					blend_factor = 1.0
+			4.以垂直高斯融合过的图为输入,进行水平像素点融合,得到blur_result
+			5.计算最终的像素颜色
+				pixel(lerp(origin, blur_result, float4(float3(intensity*blend_factor), 0.0f)));
+		HDR:
+			显示器被限制为只能显示值为0.0到1.0间的颜色，但是在光照方程中却没有这个限制。通过使片段的颜色超过1.0，我们有了一个更大的颜色范围，这也被称作HDR(High Dynamic Range, 高动态范围)。有了HDR，亮的东西可以变得非常亮，暗的东西可以变得非常暗，而且充满细节。
+		ToneMapping：
+			我们允许用更大范围的颜色值渲染从而获取大范围的黑暗与明亮的场景细节，最后将所有HDR值转换成在[0.0, 1.0]范围的LDR(Low Dynamic Range,低动态范围)。转换HDR值到LDR值得过程(通过某个映射函数)叫做色调映射(Tone Mapping)
+		Bloom：
+			所谓光晕效果，就是抽出场景中色彩比较亮的部分，然后加以模糊，使这些较亮的像素扩散到周边像素中，再把模糊后的图像叠加在Tone Mapping之后的图像上
+			1.取原始图中的像素org_clr进行亮度计算，
+				lumina = dot( org_clr.xyz, float3(0.299f, 0.587f, 0.114f)) //神奇的向量与gray中一样
+			2.将lumina大于某个亮度的像素输出到hdr_texture中
+			3.将hdr_texture高斯模糊得到blur_texture
+			4.将blur_texture与色彩提高的图叠加,再ToneMapping得到最终的效果图
+		Radial_blur：
+			设定参数：
+				sampleDist:采样单元距离
+				(ru,rv):雷达中心点纹理坐标
+				blur_intensity:模糊力度
+			输入：
+				uv为当前像素纹理坐标
+			1.dir = uv - (ru,rv) //当前坐标的雷达散射方向
+			2.biasUV = normalize(dir) * sampleDist //散射方向上的单元间隔
+			3.在散射方向上取N个点(biasUV*offset)取平均得到avg_clr
+			4.intensity = saturate(blur_intensity*length(dir))
+			5.pixel(lerp(org_clr, avg_clr, intensity))
+		Wave：屏幕水波纹
+			设定参数：
+				distortionScale：扰动幅度
+				distortionSpeed：扰动速度
+				distortionLength：扰动尺寸
+				distortionBegin：扰动中心
+				distortionPower：扰动强度
+			输入：
+				frameTime：时间
+				screenSize：(w, h, 1/w, 1/h)
+				texCorner：暗角纹理
+			1.distor_factor = pow(1-sin(saturate(α+distortionBegin)*π/2)),distortionPower) //计算扰动的强度
+			2.distorUV = uv + transform(screen_size.zw, 0.5) //扰动的uv
+			3.rangeFactor = distortionScale*0.1*distor_factor //里外的扰动幅度不一样，外面的大一点
+			4.cur_place = frameTime*distorionSpeed //
+			5.amplify_factor = 10*distortionLength //控制波纹的数量，越大越多，因为像素间的间隔越大
+			6.offset_x = sin(cur_place + distorUV.u*amplify_factor)*rangeFactor
+			7.offset_y = sin(cur_place + distorUV.v*amplify_factor)*rangeFactor
+			8.pixel(sample(texture, distorUV+float2(offsetX,offsetY)))
+		Outline：
+			Sobel边缘检测，普利维特算子(Prewitt operate，Neox实现方式)
+			lerp(orgin, edge_clr, edge_factor)
+		ColorGrading：
+			LookUpTable
+			1.像素512*512(8*8块)
+				(R,G,B,A): B决定在哪一块，块与块之间B值差(256/(8*8)==4),有一块为5,毕竟最终为255。R,G决定具体块(64*64)中取对应的像素值,步值为4
+			2.像素16*256(1*16块)
+				(R,G,B,A): B决定在哪一块，块与块之间B值差(255/(1*16-1)==17),R,G决定具体块(16*16)中取对应的像素值,步值为17
+			根据给定的颜色获取LookUPTable对应的颜色，根据强度做插值得到最终的值
+PyCharm
+	自定义快捷键：
+		File -> Setting -> Tools -> ExternalTools
+			Program：运行的文件
+			Parameters：参数
+			Working directory：所在文件夹
+		Keymap
+			右键 -> Add keyboard shortcut
+
+	配置多个项目到当前工程：
+		1、在菜单的【File】→【setting】中如下设置
+		2、找到当前工程，点击Add content Root
+
+	快捷键：
+		Alt + left :动态多选
+		Alt + shift + 上下:移动当前行到指定位置
+		shift + 上下：选中文本
+		Shift + 方向:选择
+		ctrl + g :跳转行号
+		ctrl + alt + (←,→) 跳转浏览
+		ctrl + w 选中单词
+		ctrl + 左键：打开文件所在文件夹
+
+图形
+	根据俯仰角(pitch)和偏航角(yaw)得到相机的方向向量
+		(1)斜边长为1的三角形另外两边长分别为cosθ和sinθ
+		(2)方向向量计算分两步：
+			1.经过pitch变换后
+				(x = x, 
+				y = sin(pitch),	
+				z = cos(pitch))
+			2.经过yaw变换后
+				(x = cos(pitch) * sin(yaw),
+				y = sin(pitch),
+				z = cos(pitch) * cos(yaw))
+	光
+		现实生活中看到某一物体的颜色并不是这个物体真正拥有的颜色，而是它所反射的(Reflected)颜色。换句话说，那些不能被物体所吸收(Absorb)的颜色（被拒绝的颜色）就是我们能够感知到的物体的颜色。
+		物体的颜色是物体从一个光源反射各个颜色分量的大小
+
+	alpha通道
+		Graphx (R, G, B, A)
+		屏幕上相应像素点的显示值就转换为：
+		Dispx (R*A, G*A, B*A)
+
+
+	shader三种类型变量
+		1.uniform变量
+			uniform变量在vertex和fragment两者之间声明方式完全一样，则它可以在vertex和fragment共享使用。（相当于一个被vertex和fragment shader共享的全局变量）uniform变量一般用来表示：变换矩阵，材质，光照参数和颜色等信息。
+		2.attribute变量
+			attribute变量是只能在vertex shader中使用的变量。（它不能在fragment shader中声明attribute变量，也不能被fragment shader中使用）一般用attribute变量来表示一些顶点的数据，如：顶点坐标，法线，纹理坐标，顶点颜色等。
+		3.varying变量
+			varying变量是vertex和fragment shader之间做数据传递用的。一般vertex shader修改varying变量的值，然后fragment shader使用该varying变量的值。因此varying变量在vertex和fragment shader二者之间的声明必须是一致的。application不能使用此变量。
+
+	shader数据变量限定
+		1.精度限定
+			lowp	highp	mediump	(放在数据类型之前)
+		2.指定默认精度
+			precision highp float (float默认指定为highp)
+
+
+[#10758]开包玩法客户端
+	Basic:
+		模型立绘：
+			纹理绑定：
+				PanelNPCDialog(self.render_render_holder.tex)
+					-> self.ui_texture
+						-> self.model_sprite
+						-> self.model_sprite_mission
+			渲染设定：
+				RenderTargetHolder:
+					self.scn = world.scene()
+						self.scn.background_color = 0x00000000l(背景透明)
+					self.camera = ModelPicCamera(self.scn)
+						通过配置设定相机位置方向
+
+[#15801]开包界面稀世宝图添加标记
+	Basic:
+		timeline = PanelBase.loadTimeline('ui/cocos/family.csb')
+		UInode.playAni(timeline, 'anim name', isLoop) 具体播放组件可在cocos studio中看
+
+[#15469]Loading动效
+	Basic:
+		精灵贴图替换
+			sprite_name = 'relative_path.png'
+			sprite_frame = get_sprite_frame(sprite_name, 'ui/cocos/loading.plist')
+			sprite.setSpriteFrame(sprite_frame)
+		帧动画播放
+			for i in xrange(len):
+				sprite_name = 'relative_path.png'
+				sprite_frame = get_sprite_frame(sprite_name, 'ui/cocos/loading.plist')
+				sprite_frame.retain()
+				frame_ani_list.append(sprite_frame)
+			animation = cc.Animation.createWithSpriteFrames(frame_ani_list, 1.0 / len)
+			animation.setRestoreOriginalFrame(True)
+			animation.setLoops(-1)
+			audio_ani = cc.Animate.create(animation)
+			self.loading_horse.runAction(audio_ani)
+
+[#17797]百家争鸣
+TaskNPC 绑定NPC与任务
+C_file.find_res_file 判断资源文件是否存在
+
+.NET Framework 4.0安装无效
+	网上建议无用，通过卸载VS完成
+
+shadertoy
+
+opengl
+	配置
+		include配置，lib配置，链接库配置
+		lib与项目品台需一致
+		/路径斜杠\\
+
+	更新uniform值
+		// 记得激活着色器
+		glUseProgram(shaderProgram);
+
+		// 更新uniform值
+		int vertexColorLocation = glGetUniformLocation(shaderProgram, "ourColor");
+		glUniform4f(vertexColorLocation, r, g, b, 1.0f);
+		查询uniform地址不要求你之前使用过着色器程序，但是更新一个uniform之前你必须先使用程序（调用glUseProgram)，因为它是在当前激活的着色器程序中设置uniform的
+
+	opengl基本顶点信息
+		顶点数组对象：
+			Vertex Array Object，VAO，绑定后所有顶点数组的操作都与之对应
+		顶点缓冲对象：
+			Vertex Buffer Object，VBO，与顶点数据对应的缓冲
+		索引缓冲对象：
+			Element Buffer Object，EBO或Index Buffer Object，IBO，与顶点数据对应的索引缓冲
+			float vertices[] = {
+				// positions          // colors           // texture coords
+				 0.5f,  0.5f, 0.0f,   1.0f, 0.0f, 0.0f,   1.0f, 1.0f, // top right
+				 0.5f, -0.5f, 0.0f,   0.0f, 1.0f, 0.0f,   1.0f, 0.0f, // bottom right
+				-0.5f, -0.5f, 0.0f,   0.0f, 0.0f, 1.0f,   0.0f, 0.0f, // bottom left
+				-0.5f,  0.5f, 0.0f,   1.0f, 1.0f, 0.0f,   0.0f, 1.0f  // top left 
+			};
+			unsigned int indices[] = {
+				0, 1, 3, // first triangle
+				1, 2, 3  // second triangle
+			};
+			unsigned int VBO, VAO, EBO;
+			glGenVertexArrays(1, &VAO);
+			glGenBuffers(1, &VBO);
+			glGenBuffers(1, &EBO);
+
+			glBindVertexArray(VAO);
+
+			glBindBuffer(GL_ARRAY_BUFFER, VBO);
+			glBufferData(GL_ARRAY_BUFFER, sizeof(vertices), vertices, GL_STATIC_DRAW);
+
+			glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO);
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(indices), indices, GL_STATIC_DRAW);
+
+			// position attribute
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+			glEnableVertexAttribArray(0);
+			// color attribute
+			glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(3 * sizeof(float)));
+			glEnableVertexAttribArray(1);
+			// texture coord attribute
+			glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)(6 * sizeof(float)));
+			glEnableVertexAttribArray(2);
+		设定opengl如何解析缓存中的数据
+			glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 8 * sizeof(float), (void*)0);
+			[layout索引, 属性数量(x,y,z)为3, 属性数据类型, is_normalized, 数据间隔stride_offset, begin_offset]
+
+	Shader
+		checkShaderStatus(shader_id, status){
+			int success;
+			char infoLog[512];
+			// check for linking errors
+			glGetProgramiv(shader_id, status, &success);
+			if (!success) {
+				glGetProgramInfoLog(shader_id, 512, NULL, infoLog);
+				std::cout << "ERROR::SHADER::PROGRAM::FAILED\n" << infoLog << std::endl;
+			}
+		}
+		// vertex shader
+		int vertexShader = glCreateShader(GL_VERTEX_SHADER);
+		glShaderSource(vertexShader, 1, &vertexShaderSource, NULL);
+		glCompileShader(vertexShader);
+		checkShaderStatus(vertexShader, GL_COMPILE_STATUS)
+		// fragment shader
+		int fragmentShader = glCreateShader(GL_FRAGMENT_SHADER);
+		glShaderSource(fragmentShader, 1, &fragmentShaderSource, NULL);
+		glCompileShader(fragmentShader);
+		checkShaderStatus(fragmentShader, GL_COMPILE_STATUS)
+		// link shaders
+		int shaderProgram = glCreateProgram();
+		glAttachShader(shaderProgram, vertexShader);
+		glAttachShader(shaderProgram, fragmentShader);
+		glLinkProgram(shaderProgram);
+		checkShaderStatus(shaderProgram, GL_LINK_STATUS)
+		// delete shader
+		glDeleteShader(vertexShader);
+		glDeleteShader(fragmentShader);
+
+	纹理
+		设置纹理参数(Texture Wrap)
+			glTexParameter*, (S, T, R)对应于(X, Y, Z)
+		纹理环绕方式
+			环绕方式				描述
+			GL_REPEAT			重复,默认行为
+			GL_MIRRORED_REPEAT	重复镜像
+			GL_CLAMP_TO_EDGE	[0, 1]边缘拉伸
+			GL_CLAMP_TO_BORDER	[0, 1]超出部分显示用户指定的颜色
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_MIRRORED_REPEAT);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_MIRRORED_REPEAT);
+			float borderColor[] = { 1.0f, 1.0f, 0.0f, 1.0f };
+			glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+		纹理过滤(Texture Filtering)
+			GL_NEAREST：选取最接近的像素点
+			GL_LINEAR：基于纹理坐标附近的纹理像素，计算出一个插值，近似出这些纹理像素之间的颜色。越近影响越大
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+		多级渐远纹理(Mipmap)
+			过滤方式						描述
+			GL_NEAREST_MIPMAP_NEAREST	最邻近的多级渐远纹理(MIPMAP_NEAREST)，邻近插值采样(GL_NEAREST)
+			GL_LINEAR_MIPMAP_NEAREST	最邻近的多级渐远纹理(MIPMAP_NEAREST)，线性插值采样(GL_LINEAR)
+			GL_NEAREST_MIPMAP_LINEAR	在两个邻近的多级渐远纹理之间使用线性插值(MIPMAP_LINEAR)，邻近插值采样(GL_NEAREST)
+			GL_LINEAR_MIPMAP_LINEAR		在两个邻近的多级渐远纹理之间使用线性插值(MIPMAP_LINEAR)，线性插值采样(GL_LINEAR)
+
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR);
+			glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+			一个常见的错误是，将放大过滤的选项设置为多级渐远纹理过滤选项之一。这样没有任何效果，因为多级渐远纹理主要是使用在纹理被缩小的情况下的：纹理放大不会使用多级渐远纹理，为放大过滤设置多级渐远纹理的选项会产生一个GL_INVALID_ENUM错误代码。
+		生成纹理
+			unsigned int texture;
+			glGenTextures(1, &texture);
+			glBindTexture(GL_TEXTURE_2D, texture);
+			glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, data);
+				第二个参数为纹理指定多级渐远纹理的级别，如果你希望单独手动设置每个多级渐远纹理的级别的话。这里我们填0，也就是基本级别。
+				第三个参数告诉OpenGL我们希望把纹理储存为何种格式。我们的图像只有RGB值，因此我们也把纹理储存为RGB值。
+				第四个和第五个参数设置最终的纹理的宽度和高度。我们之前加载图像的时候储存了它们，所以我们使用对应的变量。
+				下个参数应该总是被设为0（历史遗留的问题）。
+				第七第八个参数定义了源图的格式和数据类型。我们使用RGB值加载这个图像，并把它们储存为char(byte)数组，我们将会传入对应值。
+				最后一个参数是真正的图像数据。
+			glGenerateMipmap(GL_TEXTURE_2D);//生成Mipmap
+
+#批量文件改名
+import os
+from nt import chdir
+
+path = 'D:/photo/colorgrading'
+for file in os.listdir('D:/photo/colorgrading'):
+    new_path = path + '/' + file
+    print new_path
+    if os.path.isdir(new_path):
+        for f in os.listdir(new_path):
+            if '1' in f:
+                chdir(new_path)
+                new_name = f.replace('1', '1_lut')
+                os.rename(f, new_name)
+
+《Mastering Python Regular Expression》
+	grep由来
+		g/<regular expression>/p
+		g means global search and p means print.
+		re short from regualr expression, we get g/re/p
+
+C++
+	特殊的可变参数宏：__VA_ARGS__和...和args...和##
+		...:可变参数
+			#include "stdarg.h"
+			using namespace std;
+			 
+			int sum(int count, ...)
+			{
+				int sum_value=0;
+			 	//申明va_list数据类型变量args，该变量访问变长参数列表中的参数
+				va_list args;			
+				//宏va_start初始化变长参数列表。args是va_list型变量，记载列表中的参数信息。
+				//count是省略号"..."前的一个参数名，va_start根据此参数，判断参数列表的起始位置。
+				va_start(args, count);
+				while(count--)
+				{
+					//获取变长参数列表中参数的值。args是va_list型变量，type为参数值的类型，也是宏va_arg返回数值的类型。
+					//宏va_arg执行完毕后自动更改对象args，将其指向下一个参数。
+					sum_value+=va_arg(args,int);
+				}
+				//关闭本次对变长参数列表的访问
+				va_end(args);
+			 
+				return sum_value;
+			}
+			 
+			int _tmain(int argc, _TCHAR* argv[])
+			{
+				cout<<sum(5,1,2,3,4,5);//输出15
+			}
+		定义宏：#define eprintf(...) 	 fprintf (stderr, __VA_ARGS__)
+		等价于：#define eprintf(args...) fprintf (stderr, args)
+		此时编译器会将 	eprintf ("%s:%d: ", input_file, lineno)，
+		转换为==>		fprintf (stderr, "%s:%d: ", input_file, lineno)
+
+		所以：	...  	对应 	__VA_ARGS__
+				args...	对应 	args
+
+		特殊情况	 eprintf ("success!\n")
+				 ==> fprintf(stderr, "success!\n", )
+				 多了一个','，此时可以通过##去除多余的','
+
+		#define eprintf(format, ...) fprintf (stderr, format, ##__VA_ARGS__)
+
+	Node * ret = new (std::nothrow) Node();
+		通过函数重载的原理
+		This constant value is used as an argument for operator new and operator new[] to indicate that these functions shall not throw an exception on failure, but return a null pointer instead.
+
+	CC_DLL(cocos2d-X中定义的宏), __declspec(dllexport), __declspec(dllimport)
+		__declspec(dllexport)
+			声明一个导出函数或类，从本DLL导出给别人用
+
+		__declspec(dllimport)
+			声明一个导入函数或类，从别的DLL导入。
+			不使用 __declspec(dllimport) 也能正确编译代码，但使用 __declspec(dllimport)使编译器可以生成更好的代码。之所以能够生成更好的代码，是因为它可以确定函数是否存在于DLL中，这使得编译器可以生成跳过间接寻址级别的代码，而这些代码通常会出现在跨 DLL 边界的函数调用中。
+			但是，必须使用 __declspec(dllimport) 才能导入 DLL 中使用的变量。
+
+	C 标准函数库提供了许多函数来实现对堆上内存管理，其中包括：malloc函数，free函数，calloc函数和realloc函数。使用这些函数需要包含头文件stdlib.h
+		1.malloc函数
+			malloc函数可以从堆上获得指定字节的内存空间，其函数声明如下：
+				void * malloc(int n);
+				形参n为要求分配的字节数(未初始化)。成功，返回首地址；失败，返回NULL。
+			memset来将其初始化为全0。
+				void * memset (void * p,int c,int n) ;
+				p为首地址，c为要设定的值，n为字节长度。
+
+		2.free函数可以实现释放内存的功能。其函数声明为：
+			void free (void * p);
+
+		3. calloc函数
+			calloc函数的功能与malloc函数的功能相似，都是从堆分配内存。其函数声明如下：
+				void *calloc(int n,int size);
+				执行成功，函数从堆上获得size X n的字节空间，并返回首地址。失败，返回NULL。经过初始化的，其内容全为0。
+
+		4. realloc函数
+			realloc函数的功能比malloc函数和calloc函数的功能更为丰富，可以实现内存分配和内存释放的功能，其函数声明如下：
+				void * realloc(void * p,int n);
+				realloc函数将指针p指向的内存块的大小改变为n字节。
+
+	指向成员函数的指针
+		typedef void (Ref::*SEL_CallFunc)();
+
+	vector<int> v = {1,2,3,4,5};
+	cout << "size:" << v.size() << endl;
+	cout << "capacity:" << v.capacity() << endl;
+
+	v.clear();
+	v.shrink_to_fit();
+	cout << "after swap size:" << v.size() << endl;
+	cout << "after swap capacity:" << v.capacity() << endl;
+	return 0;
+
+Cocos2d-X:
+	内存管理:
+		Ref:
+			retain()		//引用计数+1
+			release()		//引用计数-1
+			autorelease()	//添加到AutoReleasePool中，每个主循环完，自动调用AutoReleasePool的clear()执行release()
+		AutoReleasePool:
+			_managedObjectArray: vector<Ref*>
+			构造与析构时自动从PoolManager中_releasePoolStack添加与删除
+		PoolManager:
+			_releasePoolStack: vector<AutoreleasePool*>
+	Node:
+		1.Node 类在Cocos2d-x里地位显赫，它是显示对象（在手机等设备里显示的东西）的基类。
+		2.Node类是一个树状结构的一个结点，它最多只有一个父结点，可以有多个子结点，这些子结点存放在一个vector的数据结构中
+		3.创建Node对象不要使用new方法，而使用create方法(autorelease)。
+		4.Node类的内存管理是走的autorelease机制的，所以不要delete对象而是采用Cocos2d-x的引用计数机制来释放对象。
+		5.向node结点中加子结点时用addchild方法（这里如果忘记了addchild都干了些什么可以翻到上面回顾一下）
+		6.将node结点显示到屏幕上使用visit方法，在visit方法里面会调用draw来绘制node.我们在使用的时候可以重载draw方法这样就可以让node按自己的方式来显示出来。
+		7.node还支持名称，tag(id)等标识，可以通过这些标识来查找node的指针。
+		8.Node还支持一些旋转，变形，绽放等操作，并且这些设置子结点也会继承的。
+		9.Node里面还引用了 定时器，事件分发，动作管理器等。
+		10.Node有一些自己的事件，当被加入到入结点中会调用 enter当被移出父结点时会触发 exit
+	ActionManager：
+		_targets为所有Action的集合(hash实现)
+		增删动画
+		update更新动画
+	Scheduler
+		1.调度控制类，分为帧调度与间隔调度。
+		2.按帧调度被集成在Node类里，调度的回调函数就是Node::update函数。
+		3.存储了很多小任务的列表管理器(hash实现)，每一个定时任务都是以Timer类为基类实现的。
+	事件机制(观察者模式)
+		Event:
+			包含一个Node*及事件类型
+		EventListener:
+			function<void(Event*)> _onEvent：事件处理函数
+			包含一个Node*
+			ListenerID
+		EventDispatcher:
+			事件分发器，负责EventListener的注册与删除，并根据事件类型进行分发
+
+Real-Time Rendering
+	第二章：图形渲染管线
+		• 应用程序阶段 (The Application Stage)
+			主要任务：将需要在屏幕上显示的几何体(也就是图元，rendering primitives如点、线、矩形等)输入到下一阶段
+			实现途径：软件实现，开发者可以完全控制
+			相关处理：碰撞检测、加速算法、动画、几何变换、层次视椎裁剪(四叉树、八叉树)
+		• 几何阶段 (The Geometry Stage)
+			• 模型视点变换 Model & View Transform
+				局部-->世界-->相机
+			• 顶点着色 Vertex Shading
+				确定模型上顶点处材质的光照效果
+			• 投影 Projection
+				将视体变换到单位立方体内,也被称为规范立方体(Canonical View Volume，CVV)
+			• 裁剪 Clipping
+				CVV裁剪
+			• 屏幕映射 Screen Mapping
+				映射到对应的屏幕坐标系上
+		• 光栅化阶段 (The Rasterizer Stage)
+			主要任务: 给每个像素(Pixel)正确配色，以便正确绘制整幅图像
+			• 三角形设定 (Triangle Setup)
+				三角形信息设定，图形扩展
+			• 三角形遍历 (Triangle Traversal)
+				找到哪些采样点或像素在三角形中
+			• 像素着色 (Pixel Shading)
+				计算所有需逐像素操作的过程
+			• 融合 (Merging)
+				根据颜色缓冲器(颜色和alpha通道)、Z缓冲器、模板缓冲器等数据计算出最终的颜色
+
+	第五章：图形外观
+		Flat shading
+			以三角形面法向量计算，整个三角形为一种颜色
+		Gouraud shading
+			以三角形顶点为单位(均有法向量)，其余点通过双线性插值进行颜色计算
+		Phong shading
+			以三角形顶点为单位(均有法向量)，其余点的法向量通过插值计算得到，再对每个点进行颜色计算
+			每个点的法向量可以通过法线贴图获取(normal map, bump map)
+
+		MSAA、FXAA都是FSAA技术。
+		FSAA：全屏抗锯。
+			SSAA：FSAA中最简单也是最慢的方法，渲染一幅为屏幕尺寸N倍的帧，然后用若干个像素混合成一个像素。
+			MSAA：结合深度技术(深度不一样则为边缘)对边缘进行采样、混合
+			FXAA：通过像素颜色检测边缘(色彩差异大时认定为边缘，精度有问题)，是一种后处理技术(在画面完成后)。
+		FXAA的精度肯定不如MSAA，但是不像MSAA那样依赖显卡的深度处理能力和显存大小。所以，好的硬件上，撑得住MSAA就用MSAA，撑不住那么用FXAA可能效果最优。不能一概而论。正因为不是所有边缘都需要AA，所以MSAA这种对所有边缘都进行AA的算法，存在着浪费。也就意味着后处理AA技术有很大的发展价值。
+	
